@@ -171,7 +171,7 @@ export default function Command() {
         prev.artworkUrl === next.artworkUrl &&
         prev.status === next.status &&
         prev.error === next.error
-const preferences = getPreferenceValues<Preferences.NowPlayingMenubar>();
+      ) {
         return prev;
       }
       return next;
