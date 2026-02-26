@@ -11,11 +11,6 @@ type NowPlayingState = {
   error?: string;
 };
 
-type Preferences = {
-  menuBarTitleTemplate?: string;
-  showAlbumArtwork?: boolean;
-};
-
 const menubarCache = new Cache({ namespace: "now-playing-menubar" });
 const LAST_STATE_CACHE_KEY = "last-state";
 const DEFAULT_TITLE_TEMPLATE = "{track} — {artist}";
@@ -158,7 +153,7 @@ function readArtworkUrl(payload: unknown): string {
 }
 
 export default function Command() {
-  const preferences = getPreferenceValues<Preferences>();
+  const preferences = getPreferenceValues<Preferences.NowPlayingMenubar>();
   const titleTemplate = normalizeTemplate(preferences.menuBarTitleTemplate);
   const showArtworkInMenuBar = preferences.showAlbumArtwork ?? true;
   const cachedState = readCachedState();
