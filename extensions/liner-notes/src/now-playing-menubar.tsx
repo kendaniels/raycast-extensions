@@ -18,7 +18,7 @@ type Preferences = {
 
 const menubarCache = new Cache({ namespace: "now-playing-menubar" });
 const LAST_STATE_CACHE_KEY = "last-state";
-const DEFAULT_TITLE_TEMPLATE = "{art} {track} — {artist}";
+const DEFAULT_TITLE_TEMPLATE = "{track} — {artist}";
 
 function defaultState(): NowPlayingState {
   return {
