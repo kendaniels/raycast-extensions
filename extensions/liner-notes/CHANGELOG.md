@@ -1,4 +1,4 @@
-## [Branding & Release Prep] - 2026-02-26
+## [Branding & Release Prep] - {PR_MERGE_DATE}
 - Rename extension branding to `Liner Notes`.
 - Update package slug to `liner-notes`.
 - Refresh store screenshots and align metadata image names with the new slug.
