@@ -1,5 +1,13 @@
 # Apple Reminders Changelog
 
+## [Customize Create Reminder Form] - {PR_MERGE_DATE}
+
+- Add a new "Customize Create Reminder Form" command to control which field groups appear in the Create Reminder form.
+- Allow field groups to be turned on or off and moved up or down into a preferred order.
+- Add support for separators in the customizable layout so sections can be added, moved, and removed.
+- Add a "Customize Create Reminder Form" action directly inside the Create Reminder form.
+- Preserve location-based alarms when updating a reminder due date.
+
 ## [Prevent accidental recurring reminders from AI] - 2026-02-26
 
 - Add tool confirmations for recurring reminder creation and recurrence updates so users can approve recurrence changes.
