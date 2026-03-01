@@ -1,5 +1,11 @@
 # Radarr Changelog
 
+## [Update] - {PR_MERGE_DATE}
+
+### Added
+
+- Settings for "Monitor This Movie", "Search Immediately" and "Default Quality Profile" are remembered
+
 ## [Update] - 2025-11-03
 
 ### Changed

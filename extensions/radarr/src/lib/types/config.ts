@@ -7,7 +7,7 @@ export interface RadarrInstance {
   isDefault: boolean;
 }
 
-interface Preferences {
+export interface Preferences {
   primaryInstanceName: string;
   primaryInstanceUrl: string;
   primaryInstanceApiKey: string;
@@ -18,8 +18,12 @@ interface Preferences {
   activeInstance?: "primary" | "secondary";
 }
 
+export function getRadarrPreferences(): Preferences {
+  return getPreferenceValues<Preferences>();
+}
+
 export function getRadarrInstances(): RadarrInstance[] {
-  const preferences = getPreferenceValues<Preferences>();
+  const preferences = getRadarrPreferences();
   const instances: RadarrInstance[] = [];
 
   if (!preferences.primaryInstanceName || !preferences.primaryInstanceUrl || !preferences.primaryInstanceApiKey) {
@@ -51,7 +55,7 @@ export function getRadarrInstances(): RadarrInstance[] {
 }
 
 export function getActiveRadarrInstance(): RadarrInstance {
-  const preferences = getPreferenceValues<Preferences>();
+  const preferences = getRadarrPreferences();
   const instances = getRadarrInstances();
 
   if (preferences.activeInstance === "secondary" && preferences.enableSecondaryInstance && instances.length > 1) {
