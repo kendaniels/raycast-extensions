@@ -14,10 +14,13 @@ import {
 } from "@raycast/api";
 import { FormValidation, MutatePromise, useForm } from "@raycast/utils";
 import { addMilliseconds, format, startOfToday } from "date-fns";
+import { ReactElement } from "react";
 import { createReminder } from "swift:../swift/AppleReminders";
 
 import LocationForm from "./components/LocationForm";
+import CustomizeCreateReminderForm from "./customize-create-reminder-form";
 import { getIntervalValidationError, getPriorityIcon } from "./helpers";
+import useCreateReminderFormLayout from "./hooks/useCreateReminderFormLayout";
 import { List, Reminder, useData } from "./hooks/useData";
 import useLocations, { Location } from "./hooks/useLocations";
 
@@ -62,6 +65,7 @@ type CreateReminderFormProps = {
 export function CreateReminderForm({ draftValues, listId, mutate }: CreateReminderFormProps) {
   const { pop } = useNavigation();
   const { data, isLoading } = useData();
+  const { value: formLayout, isLoading: isLoadingLayout } = useCreateReminderFormLayout();
 
   const { locations, addLocation } = useLocations();
 
@@ -235,10 +239,141 @@ export function CreateReminderForm({ draftValues, listId, mutate }: CreateRemind
   }
 
   const hasLocations = locations.length > 0;
+  const isFieldEnabled = (fieldId: string) =>
+    formLayout.some((item) => item.type === "field" && item.id === fieldId && item.enabled);
+  const renderFieldNodes = (fieldId: string) => {
+    switch (fieldId) {
+      case "title":
+        return [<Form.TextField key="title" {...itemProps.title} title="Title" placeholder="New Reminder" />];
+      case "list":
+        return [
+          <Form.Dropdown key="listId" {...itemProps.listId} title="List" storeValue>
+            {data?.lists.map((list) => {
+              return (
+                <Form.Dropdown.Item
+                  key={list.id}
+                  title={list.title}
+                  value={list.id}
+                  icon={{ source: Icon.Circle, tintColor: list.color }}
+                />
+              );
+            })}
+          </Form.Dropdown>,
+        ];
+      case "notes":
+        return [<Form.TextArea key="notes" {...itemProps.notes} title="Notes" placeholder="Add some notes" />];
+      case "dueDate":
+        return [<Form.DatePicker key="dueDate" {...itemProps.dueDate} title="Date" />];
+      case "recurrence":
+        if (!isFieldEnabled("dueDate") || !values.dueDate) {
+          return [];
+        }
+
+        return [
+          <Form.Checkbox key="isRecurring" {...itemProps.isRecurring} label="Is Recurring" />,
+          ...(values.isRecurring
+            ? [
+                <Form.Dropdown key="frequency" {...itemProps.frequency} title="Frequency">
+                  <Form.Dropdown.Item title="Daily" value="daily" />
+                  <Form.Dropdown.Item title="Weekdays" value="weekdays" />
+                  <Form.Dropdown.Item title="Weekends" value="weekends" />
+                  <Form.Dropdown.Item title="Weekly" value="weekly" />
+                  <Form.Dropdown.Item title="Monthly" value="monthly" />
+                  <Form.Dropdown.Item title="Yearly" value="yearly" />
+                </Form.Dropdown>,
+                <Form.TextField key="interval" {...itemProps.interval} title="Interval" placeholder="1" />,
+                <Form.Description key="recurrenceDescription" text={recurrenceDescription} />,
+              ]
+            : []),
+        ];
+      case "priority":
+        return [
+          <Form.Dropdown key="priority" {...itemProps.priority} title="Priority" storeValue>
+            <Form.Dropdown.Item title="None" value="" />
+            <Form.Dropdown.Item title="High" value="high" icon={getPriorityIcon("high")} />
+            <Form.Dropdown.Item title="Medium" value="medium" icon={getPriorityIcon("medium")} />
+            <Form.Dropdown.Item title="Low" value="low" icon={getPriorityIcon("low")} />
+          </Form.Dropdown>,
+        ];
+      case "location":
+        return [
+          ...(hasLocations
+            ? [
+                <Form.Dropdown key="location" {...itemProps.location} title="Location">
+                  <Form.Dropdown.Item title="None" value="" />
+
+                  {locations.map((location) => {
+                    return (
+                      <Form.Dropdown.Item
+                        icon={location.icon}
+                        key={location.id}
+                        title={location.name}
+                        value={location.id}
+                      />
+                    );
+                  })}
+
+                  <Form.Dropdown.Item icon={Icon.Pencil} title="Custom Location" value="custom" />
+                </Form.Dropdown>,
+              ]
+            : []),
+          ...(values.location === "custom" || !hasLocations
+            ? [
+                <Form.TextField key="address" {...itemProps.address} title="Address" placeholder="Enter an address" />,
+                <Form.Dropdown
+                  key="proximity"
+                  {...itemProps.proximity}
+                  title="Proximity"
+                  info="Whether you want to trigger the reminder when arriving at the place or when leaving it"
+                >
+                  <Form.Dropdown.Item title="Arriving" value="enter" />
+                  <Form.Dropdown.Item title="Leaving" value="leave" />
+                </Form.Dropdown>,
+                <Form.TextField
+                  key="radius"
+                  {...itemProps.radius}
+                  title="Radius"
+                  placeholder="100"
+                  info="The minimum distance in meters from the place that would trigger the reminder"
+                />,
+              ]
+            : []),
+        ];
+      default:
+        return [];
+    }
+  };
+
+  const renderedGroups = formLayout.reduce<ReactElement[][]>(
+    (groups, item) => {
+      const currentGroup = groups[groups.length - 1];
+
+      if (item.type === "separator") {
+        if (currentGroup.length > 0) {
+          groups.push([]);
+        }
+        return groups;
+      }
+
+      if (!item.enabled) {
+        return groups;
+      }
+
+      const nodes = renderFieldNodes(item.id);
+      if (nodes.length > 0) {
+        currentGroup.push(...nodes);
+      }
+
+      return groups;
+    },
+    [[]],
+  );
+
+  const visibleGroups = renderedGroups.filter((group) => group.length > 0);
 
   return (
     <Form
-      isLoading={isLoading}
+      isLoading={isLoading || isLoadingLayout}
       actions={
         <ActionPanel>
           <Action.SubmitForm icon={Icon.Plus} onSubmit={handleSubmit} title="Create Reminder" />
@@ -256,91 +391,19 @@ export function CreateReminderForm({ draftValues, listId, mutate }: CreateRemind
             shortcut={{ modifiers: ["cmd"], key: "l" }}
             target={<LocationForm onSubmit={addLocationsAndSetValue} />}
           />
+          <Action.Push
+            icon={Icon.Gear}
+            title="Customize Create Reminder Form"
+            target={<CustomizeCreateReminderForm />}
+          />
         </ActionPanel>
       }
       enableDrafts={!listId}
     >
-      <Form.TextField {...itemProps.title} title="Title" placeholder="New Reminder" />
-      <Form.TextArea {...itemProps.notes} title="Notes" placeholder="Add some notes" />
-      <Form.Separator />
-
-      <Form.DatePicker {...itemProps.dueDate} title="Date" />
-      {values.dueDate ? (
-        <>
-          <Form.Checkbox {...itemProps.isRecurring} label="Is Recurring" />
-          {values.isRecurring ? (
-            <>
-              <Form.Dropdown {...itemProps.frequency} title="Frequency">
-                <Form.Dropdown.Item title="Daily" value="daily" />
-                <Form.Dropdown.Item title="Weekdays" value="weekdays" />
-                <Form.Dropdown.Item title="Weekends" value="weekends" />
-                <Form.Dropdown.Item title="Weekly" value="weekly" />
-                <Form.Dropdown.Item title="Monthly" value="monthly" />
-                <Form.Dropdown.Item title="Yearly" value="yearly" />
-              </Form.Dropdown>
-              <Form.TextField {...itemProps.interval} title="Interval" placeholder="1" />
-              <Form.Description text={recurrenceDescription} />
-              <Form.Separator />
-            </>
-          ) : null}
-        </>
-      ) : null}
-
-      <Form.Dropdown {...itemProps.listId} title="List" storeValue>
-        {data?.lists.map((list) => {
-          return (
-            <Form.Dropdown.Item
-              key={list.id}
-              title={list.title}
-              value={list.id}
-              icon={{ source: Icon.Circle, tintColor: list.color }}
-            />
-          );
-        })}
-      </Form.Dropdown>
-
-      <Form.Dropdown {...itemProps.priority} title="Priority" storeValue>
-        <Form.Dropdown.Item title="None" value="" />
-        <Form.Dropdown.Item title="High" value="high" icon={getPriorityIcon("high")} />
-        <Form.Dropdown.Item title="Medium" value="medium" icon={getPriorityIcon("medium")} />
-        <Form.Dropdown.Item title="Low" value="low" icon={getPriorityIcon("low")} />
-      </Form.Dropdown>
-
-      <Form.Separator />
-
-      {hasLocations ? (
-        <Form.Dropdown {...itemProps.location} title="Location">
-          <Form.Dropdown.Item title="None" value="" />
-
-          {locations.map((location) => {
-            return (
-              <Form.Dropdown.Item icon={location.icon} key={location.id} title={location.name} value={location.id} />
-            );
-          })}
-
-          <Form.Dropdown.Item icon={Icon.Pencil} title="Custom Location" value="custom" />
-        </Form.Dropdown>
-      ) : null}
-
-      {values.location === "custom" || !hasLocations ? (
-        <>
-          <Form.TextField {...itemProps.address} title="Address" placeholder="Enter an address" />
-          <Form.Dropdown
-            {...itemProps.proximity}
-            title="Proximity"
-            info="Whether you want to trigger the reminder when arriving at the place or when leaving it"
-          >
-            <Form.Dropdown.Item title="Arriving" value="enter" />
-            <Form.Dropdown.Item title="Leaving" value="leave" />
-          </Form.Dropdown>
-          <Form.TextField
-            {...itemProps.radius}
-            title="Radius"
-            placeholder="100"
-            info="The minimum distance in meters from the place that would trigger the reminder"
-          />
-        </>
-      ) : null}
+      {visibleGroups.flatMap((group, index) => [
+        ...(index > 0 ? [<Form.Separator key={`separator-${index}`} />] : []),
+        ...group,
+      ])}
     </Form>
   );
 }
