@@ -4,7 +4,7 @@
 
 ### Added
 
-- Added settings for selecting defaults for "Monitor This Movie", "Search Immediately" and "Default Quality Profile"
+- Settings for "Monitor This Movie", "Search Immediately" and "Default Quality Profile" are remembered
 
 ## [Update] - 2025-11-03
 
