@@ -91,9 +91,6 @@ function normalizeReleaseType(album: MusicAlbum): string {
     return "Singles & EPs";
   }
 
-  if (value.includes("compilation")) {
-    return "Compilations";
-  }
 
   if (value.includes("soundtrack")) {
     return "Soundtracks";
