@@ -7,11 +7,9 @@ import {
   Toast,
   launchCommand,
   showToast,
-  useNavigation,
 } from "@raycast/api";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { AlbumList, AlbumTrackList } from "./browse-media";
 import {
   formatDuration,
   formatTrackDisplayTitle,
@@ -26,6 +24,8 @@ import {
   movePlayQueueItem,
   playPause,
   removePlayQueueItem,
+  setRepeat,
+  setShuffle,
   skipNext,
   skipPrevious,
   skipToQueueItem,
@@ -85,8 +85,26 @@ function LibraryActions() {
   );
 }
 
+function isShuffleEnabled(shuffle?: string): boolean {
+  return shuffle === "1" || shuffle?.toLowerCase() === "true";
+}
+
+function getRepeatMode(repeat?: string): "0" | "1" | "2" {
+  return repeat === "1" || repeat === "2" ? repeat : "0";
+}
+
+function getRepeatAccessoryText(repeat?: string): string {
+  switch (getRepeatMode(repeat)) {
+    case "1":
+      return "Loop one";
+    case "2":
+      return "Loop all";
+    default:
+      return "Loop off";
+  }
+}
+
 export default function Command() {
-  const { push } = useNavigation();
   const plexamp = usePlexampConnection();
   const [state, setState] = useState<ControlsState>({
     timeline: { state: "loading" },
@@ -209,20 +227,8 @@ export default function Command() {
     }
 
     const interval = setInterval(() => {
-      void reload({ includeQueue: false, background: true });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [plexamp.isReachable, reload]);
-
-  useEffect(() => {
-    if (!plexamp.isReachable) {
-      return;
-    }
-
-    const interval = setInterval(() => {
       void reload({ includeQueue: true, background: true });
-    }, 10000);
+    }, 1000);
 
     return () => clearInterval(interval);
   }, [plexamp.isReachable, reload]);
@@ -300,6 +306,11 @@ export default function Command() {
         },
       ]
     : [];
+  const shuffleEnabled = isShuffleEnabled(state.timeline.shuffle);
+  const repeatMode = getRepeatMode(state.timeline.repeat);
+  const nowPlayingSectionTitle = `Now Playing • ${getRepeatAccessoryText(
+    repeatMode,
+  )} • ${shuffleEnabled ? "Shuffle on" : "Shuffle off"}`;
   const currentQueueIndex =
     state.queue?.items.findIndex(
       (track) => track.playQueueItemID === state.timeline.playQueueItemID,
@@ -355,9 +366,16 @@ export default function Command() {
         throw new Error("Could not load the album for this track.");
       }
 
-      push(<AlbumTrackList album={album as MusicAlbum} />);
+      await launchCommand({
+        name: "browse-media",
+        type: LaunchType.UserInitiated,
+        context: {
+          target: "album",
+          ratingKey: album.ratingKey,
+        },
+      });
     },
-    [push],
+    [],
   );
 
   const navigateToArtist = useCallback(
@@ -393,14 +411,17 @@ export default function Command() {
         throw new Error("Could not load the artist for this track.");
       }
 
-      push(
-        <AlbumList
-          artist={artist as MusicArtist}
-          sectionKey={resolvedTrack.librarySectionKey}
-        />,
-      );
+      await launchCommand({
+        name: "browse-media",
+        type: LaunchType.UserInitiated,
+        context: {
+          target: "artist",
+          ratingKey: artist.ratingKey,
+          sectionKey: resolvedTrack.librarySectionKey,
+        },
+      });
     },
-    [push],
+    [],
   );
 
   const runNavigation = useCallback(async (action: () => Promise<void>) => {
@@ -571,7 +592,7 @@ export default function Command() {
         />
       ) : null}
 
-      <List.Section title="Now Playing">
+      <List.Section title={nowPlayingSectionTitle}>
         <List.Item
           icon={artworkSource(state.current?.thumb)}
           title={currentTitle}
@@ -598,6 +619,45 @@ export default function Command() {
                   }
                 />
               ) : null}
+              <Action
+                title={shuffleEnabled ? "Disable Shuffle" : "Enable Shuffle"}
+                icon={Icon.Switch}
+                shortcut={{ modifiers: ["cmd"], key: "s" }}
+                onAction={() =>
+                  runControl(
+                    () => setShuffle(!shuffleEnabled),
+                    shuffleEnabled ? "Shuffle disabled" : "Shuffle enabled",
+                  )
+                }
+              />
+              <Action
+                title={
+                  repeatMode === "0"
+                    ? "Set Loop All"
+                    : repeatMode === "2"
+                      ? "Set Loop One"
+                      : "Turn Loop Off"
+                }
+                icon={Icon.ArrowClockwise}
+                shortcut={{ modifiers: ["cmd"], key: "l" }}
+                onAction={() =>
+                  runControl(
+                    () =>
+                      setRepeat(
+                        repeatMode === "0"
+                          ? "2"
+                          : repeatMode === "2"
+                            ? "1"
+                            : "0",
+                      ),
+                    repeatMode === "0"
+                      ? "Loop all enabled"
+                      : repeatMode === "2"
+                        ? "Loop one enabled"
+                        : "Loop disabled",
+                  )
+                }
+              />
               {currentTrack ? (
                 <Action
                   title="Go to Artist"

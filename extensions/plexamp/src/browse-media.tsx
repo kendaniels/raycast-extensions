@@ -1,4 +1,12 @@
-import { Action, ActionPanel, Color, Icon, List } from "@raycast/api";
+import {
+  Action,
+  ActionPanel,
+  Color,
+  Icon,
+  Keyboard,
+  LaunchProps,
+  List,
+} from "@raycast/api";
 import { useEffect, useState } from "react";
 import { useNavigation } from "@raycast/api";
 
@@ -11,10 +19,12 @@ import {
   getAlbumsForArtist,
   getArtists,
   getAudioPlaylists,
+  getMetadataByRatingKey,
   getTracksForAlbum,
   getTracksForPlaylist,
 } from "./plex";
 import {
+  NowPlayingAction,
   PreferencesAction,
   artworkSource,
   usePlaybackActions,
@@ -34,6 +44,12 @@ interface LoadState<T> {
   isLoading: boolean;
   items: T[];
   error?: string;
+}
+
+interface BrowseLaunchContext {
+  target?: "album" | "artist";
+  ratingKey?: string;
+  sectionKey?: string;
 }
 
 function albumAccessories(album: MusicAlbum): List.Item.Accessory[] {
@@ -192,6 +208,7 @@ function AlbumRow(props: {
             onPlay={props.onPlay}
             onPlayNext={props.onPlayNext}
             onQueue={props.onQueue}
+            nowPlayingShortcut={{ modifiers: ["cmd"], key: "n" }}
           />
         </ActionPanel>
       }
@@ -242,6 +259,7 @@ function PlaybackActions(props: {
   onPlay: (item: PlayableItem) => Promise<void>;
   onPlayNext: (item: PlayableItem) => Promise<void>;
   onQueue: (item: PlayableItem) => Promise<void>;
+  nowPlayingShortcut?: Keyboard.Shortcut;
 }) {
   return (
     <>
@@ -259,8 +277,9 @@ function PlaybackActions(props: {
         title="Play Next"
         icon={Icon.Forward}
         onAction={() => props.onPlayNext(props.item)}
-        shortcut={{ modifiers: ["cmd"], key: "n" }}
+        shortcut={{ modifiers: ["cmd", "shift"], key: "return" }}
       />
+      <NowPlayingAction shortcut={props.nowPlayingShortcut} />
       <PreferencesAction />
     </>
   );
@@ -314,6 +333,12 @@ function RootContent() {
       isLoading={isLoading}
       navigationTitle={selectedLibrary.title}
       searchBarPlaceholder="Filter artists and playlists"
+      actions={
+        <ActionPanel>
+          <NowPlayingAction shortcut={{ modifiers: ["cmd"], key: "n" }} />
+          <PreferencesAction />
+        </ActionPanel>
+      }
     >
       <List.Section title="Artists">
         {artists.items.map((artist) => (
@@ -353,6 +378,7 @@ function RootContent() {
                   onPlay={playback.play}
                   onPlayNext={playback.playNext}
                   onQueue={playback.queue}
+                  nowPlayingShortcut={{ modifiers: ["cmd"], key: "n" }}
                 />
               </ActionPanel>
             }
@@ -397,6 +423,7 @@ function ArtistRow(props: {
             onPlay={props.onPlay}
             onPlayNext={props.onPlayNext}
             onQueue={props.onQueue}
+            nowPlayingShortcut={{ modifiers: ["cmd"], key: "n" }}
           />
         </ActionPanel>
       }
@@ -416,12 +443,24 @@ export function ArtistList(props: { section: LibrarySection }) {
       isLoading={artists.isLoading || playback.isPerforming}
       navigationTitle={props.section.title}
       searchBarPlaceholder="Filter artists"
+      actions={
+        <ActionPanel>
+          <NowPlayingAction shortcut={{ modifiers: ["cmd"], key: "n" }} />
+          <PreferencesAction />
+        </ActionPanel>
+      }
     >
       {artists.error ? (
         <List.EmptyView
           icon={Icon.ExclamationMark}
           title="Unable to load artists"
           description={artists.error}
+          actions={
+            <ActionPanel>
+              <NowPlayingAction shortcut={{ modifiers: ["cmd"], key: "n" }} />
+              <PreferencesAction />
+            </ActionPanel>
+          }
         />
       ) : null}
       {artists.items.map((artist) => (
@@ -438,7 +477,10 @@ export function ArtistList(props: { section: LibrarySection }) {
   );
 }
 
-export function AlbumList(props: { artist: MusicArtist; sectionKey: string }) {
+export function AlbumList(props: {
+  artist: MusicArtist;
+  sectionKey: string;
+}) {
   const albums = useLoadItems(
     () => getAlbumsForArtist(props.sectionKey, props.artist),
     `${props.sectionKey}:${props.artist.ratingKey}`,
@@ -451,12 +493,24 @@ export function AlbumList(props: { artist: MusicArtist; sectionKey: string }) {
       isLoading={albums.isLoading || playback.isPerforming}
       navigationTitle={props.artist.title}
       searchBarPlaceholder="Filter albums"
+      actions={
+        <ActionPanel>
+          <NowPlayingAction shortcut={{ modifiers: ["cmd"], key: "n" }} />
+          <PreferencesAction />
+        </ActionPanel>
+      }
     >
       {albums.error ? (
         <List.EmptyView
           icon={Icon.ExclamationMark}
           title="Unable to load albums"
           description={albums.error}
+          actions={
+            <ActionPanel>
+              <NowPlayingAction shortcut={{ modifiers: ["cmd"], key: "n" }} />
+              <PreferencesAction />
+            </ActionPanel>
+          }
         />
       ) : null}
       {sections.map(([title, items]) => (
@@ -476,7 +530,9 @@ export function AlbumList(props: { artist: MusicArtist; sectionKey: string }) {
   );
 }
 
-export function AlbumTrackList(props: { album: MusicAlbum }) {
+export function AlbumTrackList(props: {
+  album: MusicAlbum;
+}) {
   const tracks = useLoadItems(
     () => getTracksForAlbum(props.album),
     props.album.ratingKey,
@@ -535,12 +591,24 @@ function TrackList(props: {
       isLoading={props.isLoading}
       navigationTitle={props.title}
       searchBarPlaceholder="Filter tracks"
+      actions={
+        <ActionPanel>
+          <NowPlayingAction shortcut={{ modifiers: ["cmd"], key: "n" }} />
+          <PreferencesAction />
+        </ActionPanel>
+      }
     >
       {props.error ? (
         <List.EmptyView
           icon={Icon.ExclamationMark}
           title="Unable to load tracks"
           description={props.error}
+          actions={
+            <ActionPanel>
+              <NowPlayingAction shortcut={{ modifiers: ["cmd"], key: "n" }} />
+              <PreferencesAction />
+            </ActionPanel>
+          }
         />
       ) : null}
       {props.tracks.map((track) => (
@@ -564,6 +632,7 @@ function TrackList(props: {
                 onPlay={props.onPlay}
                 onPlayNext={props.onPlayNext}
                 onQueue={props.onQueue}
+                nowPlayingShortcut={{ modifiers: ["cmd"], key: "n" }}
               />
             </ActionPanel>
           }
@@ -573,6 +642,163 @@ function TrackList(props: {
   );
 }
 
-export default function Command() {
+function LaunchAlbumView(props: { ratingKey: string }) {
+  const [album, setAlbum] = useState<MusicAlbum>();
+  const [error, setError] = useState<string>();
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const metadata = await getMetadataByRatingKey(props.ratingKey);
+
+        if (cancelled) {
+          return;
+        }
+
+        if (!metadata || metadata.type !== "album") {
+          throw new Error("Could not load the selected album.");
+        }
+
+        setAlbum(metadata);
+        setError(undefined);
+      } catch (loadError) {
+        if (!cancelled) {
+          setError(
+            loadError instanceof Error ? loadError.message : String(loadError),
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [props.ratingKey]);
+
+  if (album) {
+    return <AlbumTrackList album={album} />;
+  }
+
+  return (
+    <List
+      isLoading={isLoading}
+      navigationTitle="Browse Album"
+      actions={
+        <ActionPanel>
+          <NowPlayingAction shortcut={{ modifiers: ["cmd"], key: "n" }} />
+          <PreferencesAction />
+        </ActionPanel>
+      }
+    >
+      <List.EmptyView
+        icon={error ? Icon.ExclamationMark : Icon.Music}
+        title={error ? "Unable to load album" : "Loading album"}
+        description={error}
+        actions={
+          <ActionPanel>
+            <NowPlayingAction shortcut={{ modifiers: ["cmd"], key: "n" }} />
+            <PreferencesAction />
+          </ActionPanel>
+        }
+      />
+    </List>
+  );
+}
+
+function LaunchArtistView(props: { ratingKey: string; sectionKey: string }) {
+  const [artist, setArtist] = useState<MusicArtist>();
+  const [error, setError] = useState<string>();
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const metadata = await getMetadataByRatingKey(props.ratingKey);
+
+        if (cancelled) {
+          return;
+        }
+
+        if (!metadata || metadata.type !== "artist") {
+          throw new Error("Could not load the selected artist.");
+        }
+
+        setArtist(metadata);
+        setError(undefined);
+      } catch (loadError) {
+        if (!cancelled) {
+          setError(
+            loadError instanceof Error ? loadError.message : String(loadError),
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [props.ratingKey]);
+
+  if (artist) {
+    return <AlbumList artist={artist} sectionKey={props.sectionKey} />;
+  }
+
+  return (
+    <List
+      isLoading={isLoading}
+      navigationTitle="Browse Artist"
+      actions={
+        <ActionPanel>
+          <NowPlayingAction shortcut={{ modifiers: ["cmd"], key: "n" }} />
+          <PreferencesAction />
+        </ActionPanel>
+      }
+    >
+      <List.EmptyView
+        icon={error ? Icon.ExclamationMark : Icon.Person}
+        title={error ? "Unable to load artist" : "Loading artist"}
+        description={error}
+        actions={
+          <ActionPanel>
+            <NowPlayingAction shortcut={{ modifiers: ["cmd"], key: "n" }} />
+            <PreferencesAction />
+          </ActionPanel>
+        }
+      />
+    </List>
+  );
+}
+
+export default function Command(
+  props: LaunchProps<{ launchContext?: BrowseLaunchContext }>,
+) {
+  const context = props.launchContext;
+
+  if (context?.target === "album" && context.ratingKey) {
+    return <LaunchAlbumView ratingKey={context.ratingKey} />;
+  }
+
+  if (context?.target === "artist" && context.ratingKey && context.sectionKey) {
+    return (
+      <LaunchArtistView
+        ratingKey={context.ratingKey}
+        sectionKey={context.sectionKey}
+      />
+    );
+  }
+
   return <RootContent />;
 }

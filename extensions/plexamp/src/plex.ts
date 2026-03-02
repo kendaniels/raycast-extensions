@@ -1446,6 +1446,68 @@ async function addToPlayQueue(
   });
 }
 
+async function getExpandedPlayQueue(playQueueId: string): Promise<PlayQueueInfo> {
+  return getPlayQueue(playQueueId, {
+    window: 10000,
+    includeBefore: 10000,
+    includeAfter: 10000,
+  });
+}
+
+async function movePlayQueueItemInternal(
+  playQueueId: string,
+  playQueueItemId: string,
+  afterPlayQueueItemId?: string,
+): Promise<void> {
+  const params = new URLSearchParams();
+
+  if (afterPlayQueueItemId) {
+    params.set("after", afterPlayQueueItemId);
+  }
+
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  await requestServer(
+    `/playQueues/${playQueueId}/items/${playQueueItemId}/move${suffix}`,
+    {
+      method: "PUT",
+    },
+  );
+}
+
+async function appendNewQueueItemsToEnd(playQueueId: string, item: PlayableItem): Promise<void> {
+  const queueBefore = await getExpandedPlayQueue(playQueueId);
+  const existingItemIds = new Set(
+    queueBefore.items
+      .map((queueItem) => queueItem.playQueueItemID)
+      .filter((queueItemId): queueItemId is string => Boolean(queueItemId)),
+  );
+  const lastExistingItemId = [...existingItemIds].at(-1);
+
+  await addToPlayQueue(playQueueId, item);
+
+  const queueAfter = await getExpandedPlayQueue(playQueueId);
+  const newItems = queueAfter.items.filter(
+    (queueItem) =>
+      queueItem.playQueueItemID &&
+      !existingItemIds.has(queueItem.playQueueItemID),
+  );
+
+  let anchorItemId = lastExistingItemId;
+
+  for (const queueItem of newItems) {
+    if (!queueItem.playQueueItemID) {
+      continue;
+    }
+
+    await movePlayQueueItemInternal(
+      playQueueId,
+      queueItem.playQueueItemID,
+      anchorItemId,
+    );
+    anchorItemId = queueItem.playQueueItemID;
+  }
+}
+
 export async function playItem(item: PlayableItem): Promise<void> {
   const queue = await createPlayQueue(item);
   await startPlayQueue(queue);
@@ -1455,7 +1517,7 @@ export async function queueItem(item: PlayableItem): Promise<void> {
   const timeline = await getTimeline();
 
   if (timeline.playQueueID) {
-    await addToPlayQueue(timeline.playQueueID, item);
+    await appendNewQueueItemsToEnd(timeline.playQueueID, item);
     await refreshPlayQueue(timeline.playQueueID);
     return;
   }
@@ -1543,18 +1605,10 @@ export async function movePlayQueueItem(
   playQueueItemId: string,
   afterPlayQueueItemId?: string,
 ): Promise<void> {
-  const params = new URLSearchParams();
-
-  if (afterPlayQueueItemId) {
-    params.set("after", afterPlayQueueItemId);
-  }
-
-  const suffix = params.toString() ? `?${params.toString()}` : "";
-  await requestServer(
-    `/playQueues/${playQueueId}/items/${playQueueItemId}/move${suffix}`,
-    {
-      method: "PUT",
-    },
+  await movePlayQueueItemInternal(
+    playQueueId,
+    playQueueItemId,
+    afterPlayQueueItemId,
   );
   await refreshPlayQueue(playQueueId);
 }
@@ -1581,6 +1635,23 @@ export async function skipNext(): Promise<void> {
 
 export async function skipPrevious(): Promise<void> {
   await requestPlayer("/player/playback/skipPrevious", { type: "music" });
+}
+
+async function setPlaybackParameters(
+  params: Record<string, string | undefined>,
+): Promise<void> {
+  await requestPlayer("/player/playback/setParameters", {
+    type: "music",
+    ...params,
+  });
+}
+
+export async function setShuffle(enabled: boolean): Promise<void> {
+  await setPlaybackParameters({ shuffle: enabled ? "1" : "0" });
+}
+
+export async function setRepeat(mode: "0" | "1" | "2"): Promise<void> {
+  await setPlaybackParameters({ repeat: mode });
 }
 
 export async function skipToQueueItem(track: MusicTrack): Promise<void> {

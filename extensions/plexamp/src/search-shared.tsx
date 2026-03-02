@@ -16,6 +16,7 @@ import {
 } from "./format";
 import { searchLibrary } from "./plex";
 import {
+  NowPlayingAction,
   PreferencesAction,
   artworkSource,
   librarySetupDescription,
@@ -70,8 +71,9 @@ function SearchActions(props: {
         title="Play Next"
         icon={Icon.Forward}
         onAction={() => props.onPlayNext(props.item)}
-        shortcut={{ modifiers: ["cmd"], key: "n" }}
+        shortcut={{ modifiers: ["cmd", "shift"], key: "return" }}
       />
+      <NowPlayingAction shortcut={{ modifiers: ["cmd"], key: "n" }} />
       <PreferencesAction />
     </ActionPanel>
   );
@@ -298,18 +300,36 @@ export function SearchCommand() {
       onSearchTextChange={setQuery}
       searchText={query}
       navigationTitle={`Search: ${librarySelection.selectedLibrary.title}`}
+      actions={
+        <ActionPanel>
+          <NowPlayingAction shortcut={{ modifiers: ["cmd"], key: "n" }} />
+          <PreferencesAction />
+        </ActionPanel>
+      }
     >
       {state.error ? (
         <List.EmptyView
           icon={Icon.Gear}
           title="Finish Plex Setup"
           description={librarySetupDescription(state.error)}
+          actions={
+            <ActionPanel>
+              <NowPlayingAction shortcut={{ modifiers: ["cmd"], key: "n" }} />
+              <PreferencesAction />
+            </ActionPanel>
+          }
         />
       ) : null}
       {query.trim().length === 0 && librarySelection.selectedLibrary ? (
         <List.EmptyView
           icon={Icon.MagnifyingGlass}
           title="Search by Artist, Album or Track"
+          actions={
+            <ActionPanel>
+              <NowPlayingAction shortcut={{ modifiers: ["cmd"], key: "n" }} />
+              <PreferencesAction />
+            </ActionPanel>
+          }
         />
       ) : null}
       {!state.error &&
@@ -320,6 +340,12 @@ export function SearchCommand() {
           icon={Icon.MagnifyingGlass}
           title="No results"
           description="Plex did not return any songs, albums, or artists for this search."
+          actions={
+            <ActionPanel>
+              <NowPlayingAction shortcut={{ modifiers: ["cmd"], key: "n" }} />
+              <PreferencesAction />
+            </ActionPanel>
+          }
         />
       ) : null}
       <SearchResultsList

@@ -1,9 +1,13 @@
 import {
   Action,
   ActionPanel,
+  environment,
   Icon,
+  Keyboard,
+  LaunchType,
   List,
   Toast,
+  launchCommand,
   openExtensionPreferences,
   showToast,
 } from "@raycast/api";
@@ -23,6 +27,26 @@ export function PreferencesAction(props?: { title?: string }) {
       title={props?.title ?? "Open Extension Settings"}
       icon={Icon.Gear}
       onAction={openExtensionPreferences}
+    />
+  );
+}
+
+export function NowPlayingAction(props?: {
+  shortcut?: Keyboard.Shortcut;
+}) {
+  return (
+    <Action
+      title="Now Playing"
+      icon={Icon.Play}
+      shortcut={props?.shortcut}
+      onAction={() =>
+        environment.commandName === "player-controls"
+          ? Promise.resolve()
+          : launchCommand({
+              name: "player-controls",
+              type: LaunchType.UserInitiated,
+            })
+      }
     />
   );
 }
