@@ -25,6 +25,14 @@
       "mode": "view"
     },
     {
+      "name": "now-playing-menubar",
+      "title": "Now Playing Menubar",
+      "subtitle": "Plexamp",
+      "description": "Show the current Plexamp track in the menu bar.",
+      "mode": "menu-bar",
+      "interval": "10s"
+    },
+    {
       "name": "plexamp-status",
       "title": "Plexamp Status",
       "subtitle": "Plexamp",
@@ -70,6 +78,15 @@
           "value": "oneStar"
         }
       ]
+    },
+    {
+      "name": "menuBarFormat",
+      "type": "textfield",
+      "required": false,
+      "title": "Menubar Format",
+      "default": "{track} - {artist}",
+      "placeholder": "{track} - {artist}",
+      "description": "Customize the menu bar text with {track}, {album}, and {artist}."
     }
   ],
   "dependencies": {

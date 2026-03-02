@@ -1,4 +1,5 @@
 import { getPreferenceValues } from "@raycast/api";
+import type { MetadataItem } from "./types";
 
 export function formatDuration(milliseconds?: number): string {
   if (!milliseconds || milliseconds < 0) {
@@ -47,7 +48,10 @@ export type TrackRatingDisplayMode = "fiveStars" | "fiveStarsHalf" | "oneStar";
 
 interface RatingPreferences {
   trackRatings?: TrackRatingDisplayMode;
+  menuBarFormat?: string;
 }
+
+const DEFAULT_MENU_BAR_FORMAT = "{track} - {artist}";
 
 export function getTrackRatingDisplayMode(): TrackRatingDisplayMode {
   const value = getPreferenceValues<RatingPreferences>().trackRatings;
@@ -57,6 +61,43 @@ export function getTrackRatingDisplayMode(): TrackRatingDisplayMode {
   }
 
   return "fiveStars";
+}
+
+export function getMenuBarFormat(): string {
+  const value = getPreferenceValues<RatingPreferences>().menuBarFormat?.trim();
+  return value || DEFAULT_MENU_BAR_FORMAT;
+}
+
+export function formatNowPlayingMenuBarTitle(
+  item: MetadataItem | undefined,
+  format: string = getMenuBarFormat(),
+): string {
+  if (!item) {
+    return "Nothing playing";
+  }
+
+  const tokens = {
+    "{track}": item.type === "track" ? item.title : "",
+    "{album}":
+      item.type === "track"
+        ? (item.parentTitle ?? "")
+        : item.type === "album"
+          ? item.title
+          : "",
+    "{artist}":
+      item.type === "track"
+        ? (item.grandparentTitle ?? "")
+        : item.type === "album"
+          ? (item.parentTitle ?? "")
+          : item.title,
+  };
+
+  const rendered = Object.entries(tokens).reduce(
+    (result, [token, value]) => result.replaceAll(token, value),
+    format,
+  );
+
+  return rendered.trim() || "Nothing playing";
 }
 
 export function formatTrackRating(
