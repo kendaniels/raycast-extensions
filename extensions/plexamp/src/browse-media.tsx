@@ -107,7 +107,6 @@ function normalizeReleaseType(album: MusicAlbum): string {
     return "Singles & EPs";
   }
 
-
   if (value.includes("soundtrack")) {
     return "Soundtracks";
   }
@@ -477,10 +476,7 @@ export function ArtistList(props: { section: LibrarySection }) {
   );
 }
 
-export function AlbumList(props: {
-  artist: MusicArtist;
-  sectionKey: string;
-}) {
+export function AlbumList(props: { artist: MusicArtist; sectionKey: string }) {
   const albums = useLoadItems(
     () => getAlbumsForArtist(props.sectionKey, props.artist),
     `${props.sectionKey}:${props.artist.ratingKey}`,
@@ -530,9 +526,7 @@ export function AlbumList(props: {
   );
 }
 
-export function AlbumTrackList(props: {
-  album: MusicAlbum;
-}) {
+export function AlbumTrackList(props: { album: MusicAlbum }) {
   const tracks = useLoadItems(
     () => getTracksForAlbum(props.album),
     props.album.ratingKey,

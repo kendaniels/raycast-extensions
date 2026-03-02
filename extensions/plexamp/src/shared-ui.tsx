@@ -31,9 +31,7 @@ export function PreferencesAction(props?: { title?: string }) {
   );
 }
 
-export function NowPlayingAction(props?: {
-  shortcut?: Keyboard.Shortcut;
-}) {
+export function NowPlayingAction(props?: { shortcut?: Keyboard.Shortcut }) {
   return (
     <Action
       title="Now Playing"

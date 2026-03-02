@@ -1446,7 +1446,9 @@ async function addToPlayQueue(
   });
 }
 
-async function getExpandedPlayQueue(playQueueId: string): Promise<PlayQueueInfo> {
+async function getExpandedPlayQueue(
+  playQueueId: string,
+): Promise<PlayQueueInfo> {
   return getPlayQueue(playQueueId, {
     window: 10000,
     includeBefore: 10000,
@@ -1474,7 +1476,10 @@ async function movePlayQueueItemInternal(
   );
 }
 
-async function appendNewQueueItemsToEnd(playQueueId: string, item: PlayableItem): Promise<void> {
+async function appendNewQueueItemsToEnd(
+  playQueueId: string,
+  item: PlayableItem,
+): Promise<void> {
   const queueBefore = await getExpandedPlayQueue(playQueueId);
   const existingItemIds = new Set(
     queueBefore.items
