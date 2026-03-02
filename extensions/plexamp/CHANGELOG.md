@@ -3,6 +3,8 @@
 - Added managed Plex sign-in, server selection, and music library selection inside Raycast.
 - Added the `Plexamp Status` command for inspecting the active Plexamp client and selected music library.
 - Renamed `Player Controls` to `Now Playing`.
+- Added the `Now Playing Menubar` command to show current album art and playback text in the macOS menu bar.
+- Added the `Menubar Format` preference with `{track}`, `{album}`, and `{artist}` placeholders for customizing menu bar text.
 - Added `Go to Album` and `Go to Artist` actions for tracks on the `Now Playing` screen.
 - Added `Clear Queue` to `Now Playing`, preserving the current track while removing the rest of the queue.
 - Added `Select Library` and `Sign Out from Plex` actions to `Plexamp Status`.
@@ -35,6 +37,7 @@
 - Fixed blank optional overrides preventing the saved music library selection from being reused.
 - Fixed stale Plexamp URL caching so updated override values are used after relaunching a command.
 - Fixed artist navigation from `Now Playing` tracks by normalizing Plex library section keys.
+- Fixed menu bar refresh behavior by switching the `Now Playing Menubar` command to Raycast's 10 second background interval.
 - Reworked the library search flow.
 - Improved browse and search result presentation.
 - Updated package and type configuration to match the revised search implementation.
