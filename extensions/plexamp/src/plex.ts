@@ -231,6 +231,35 @@ export async function saveSelectedServer(
   invalidateCachedConfig();
 }
 
+export async function getMusicSectionsForServer(
+  server: PlexServerResource,
+): Promise<LibrarySection[]> {
+  const preferredConnection =
+    server.preferredConnection ?? server.connections[0];
+
+  if (!preferredConnection) {
+    throw new Error(`No usable connection was found for ${server.name}.`);
+  }
+
+  const container = await requestXml(
+    preferredConnection.uri,
+    "/library/sections",
+    undefined,
+    true,
+    server.accessToken,
+  );
+
+  return arrayify(container.Directory)
+    .filter((node): node is XmlNode => typeof node === "object")
+    .filter((node) => asString(node.type) === "artist")
+    .map((node) => ({
+      key: requiredString(node.key, "key"),
+      title: requiredString(node.title, "title"),
+      type: "artist" as const,
+      totalSize: asNumber(node.totalSize),
+    }));
+}
+
 export async function saveSelectedLibrary(
   library: LibrarySection,
 ): Promise<void> {
@@ -547,6 +576,32 @@ function parseMetadataItem(container: XmlNode): MetadataItem | undefined {
   return undefined;
 }
 
+function parseMetadataNode(node: XmlNode): MetadataItem | undefined {
+  const type = asString(node.type);
+
+  if (type === "track") {
+    return parseTrack(node);
+  }
+
+  if (type === "artist") {
+    return parseArtist(node);
+  }
+
+  if (type === "album") {
+    return parseAlbum(node);
+  }
+
+  if (type === "playlist") {
+    return parsePlaylist(node);
+  }
+
+  if (asString(node.ratingKey) && asString(node.title)) {
+    return parseTrack(node);
+  }
+
+  return undefined;
+}
+
 async function hydrateAlbums(albums: MusicAlbum[]): Promise<MusicAlbum[]> {
   const hydratedAlbums: MusicAlbum[] = [];
 
@@ -786,6 +841,44 @@ async function requestServer(
     true,
     config.plexServerToken ?? config.plexToken,
   );
+}
+
+async function requestServerWithConnection(
+  baseUrl: string,
+  path: string,
+  token?: string,
+  init?: RequestInit,
+): Promise<XmlNode> {
+  return requestXml(baseUrl, path, init, true, token);
+}
+
+async function requestTimelineServer(
+  timeline: TimelineInfo,
+  path: string,
+  init?: RequestInit,
+): Promise<XmlNode> {
+  const baseUrl = getTimelineServerBaseUrl(timeline);
+
+  if (!baseUrl) {
+    return requestServer(path, init);
+  }
+
+  const { plexToken } = await getConfig();
+  return requestServerWithConnection(baseUrl, path, plexToken, init);
+}
+
+function isRequestStatusError(error: unknown, statusCode: number): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes(`Request failed (${statusCode} `);
+}
+
+async function requestPlayQueueViaPlayer(
+  playQueueId: string,
+  params: URLSearchParams,
+): Promise<XmlNode> {
+  return requestPlayer(`/playQueues/${encodeURIComponent(playQueueId)}`, {
+    ...Object.fromEntries(params.entries()),
+  });
 }
 
 function parsePlexampClientInfo(container: XmlNode): PlexampClientInfo {
@@ -1031,17 +1124,16 @@ function parsePlayQueue(container: XmlNode): PlayQueueInfo {
 }
 
 export async function getMusicSections(): Promise<LibrarySection[]> {
-  const container = await requestServer("/library/sections");
+  const config = await requireServerConfig();
 
-  return arrayify(container.Directory)
-    .filter((node): node is XmlNode => typeof node === "object")
-    .filter((node) => asString(node.type) === "artist")
-    .map((node) => ({
-      key: requiredString(node.key, "key"),
-      title: requiredString(node.title, "title"),
-      type: "artist" as const,
-      totalSize: asNumber(node.totalSize),
-    }));
+  return getMusicSectionsForServer({
+    name: config.serverName ?? "Plex Media Server",
+    clientIdentifier: config.serverMachineIdentifier ?? config.plexServerUrl,
+    accessToken: config.plexServerToken ?? config.plexToken,
+    owned: true,
+    connections: [{ uri: config.plexServerUrl }],
+    preferredConnection: { uri: config.plexServerUrl },
+  });
 }
 
 export async function resolveSelectedLibrary(
@@ -1317,6 +1409,11 @@ export async function getTimeline(): Promise<TimelineInfo> {
     state: asString(musicTimeline.state) ?? "stopped",
     key: asString(musicTimeline.key),
     ratingKey: asString(musicTimeline.ratingKey),
+    current: parseMetadataNode(musicTimeline) ?? parseMetadataItem(container),
+    machineIdentifier: asString(musicTimeline.machineIdentifier),
+    address: asString(musicTimeline.address),
+    port: asString(musicTimeline.port),
+    protocol: asString(musicTimeline.protocol),
     time: asNumber(musicTimeline.time),
     duration: asNumber(musicTimeline.duration),
     playQueueID: asString(musicTimeline.playQueueID),
@@ -1355,16 +1452,84 @@ export async function getPlayQueue(
     );
     return parsePlayQueue(container);
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-
-    if (!message.includes("400")) {
-      throw error;
+    if (isRequestStatusError(error, 400) || isRequestStatusError(error, 404)) {
+      try {
+        const container = await requestPlayQueueViaPlayer(playQueueId, params);
+        return parsePlayQueue(container);
+      } catch {
+        if (isRequestStatusError(error, 400)) {
+          const fallbackContainer = await requestServer(
+            `/playQueues/${encodeURIComponent(playQueueId)}?own=1`,
+          );
+          return parsePlayQueue(fallbackContainer);
+        }
+      }
     }
 
-    const fallbackContainer = await requestServer(
-      `/playQueues/${encodeURIComponent(playQueueId)}?own=1`,
+    throw error;
+  }
+}
+
+function getTimelineServerBaseUrl(timeline: TimelineInfo): string | undefined {
+  if (!timeline.protocol || !timeline.address || !timeline.port) {
+    return undefined;
+  }
+
+  return `${timeline.protocol}://${timeline.address}:${timeline.port}`;
+}
+
+export async function getPlayQueueForTimeline(
+  timeline: TimelineInfo,
+  options?: {
+    window?: number;
+    includeBefore?: number;
+    includeAfter?: number;
+  },
+): Promise<PlayQueueInfo> {
+  if (!timeline.playQueueID) {
+    throw new Error(
+      "The current Plexamp timeline does not include a play queue.",
     );
-    return parsePlayQueue(fallbackContainer);
+  }
+
+  const baseUrl = getTimelineServerBaseUrl(timeline);
+
+  if (!baseUrl) {
+    return getPlayQueue(timeline.playQueueID, options);
+  }
+
+  const { plexToken } = await getConfig();
+  const params = new URLSearchParams({ own: "1" });
+
+  if (options?.window !== undefined) {
+    params.set("window", String(options.window));
+  }
+
+  if (options?.includeBefore !== undefined) {
+    params.set("includeBefore", String(options.includeBefore));
+  }
+
+  if (options?.includeAfter !== undefined) {
+    params.set("includeAfter", String(options.includeAfter));
+  }
+
+  try {
+    const container = await requestServerWithConnection(
+      baseUrl,
+      `/playQueues/${encodeURIComponent(timeline.playQueueID)}?${params.toString()}`,
+      plexToken,
+    );
+    return parsePlayQueue(container);
+  } catch (error) {
+    if (isRequestStatusError(error, 400) || isRequestStatusError(error, 404)) {
+      const container = await requestPlayQueueViaPlayer(
+        timeline.playQueueID,
+        params,
+      );
+      return parsePlayQueue(container);
+    }
+
+    throw error;
   }
 }
 
@@ -1372,6 +1537,21 @@ export async function getMetadataByKey(
   key: string,
 ): Promise<MetadataItem | undefined> {
   const container = await requestServer(key);
+  return parseMetadataItem(container);
+}
+
+export async function getMetadataByKeyForTimeline(
+  timeline: TimelineInfo,
+  key: string,
+): Promise<MetadataItem | undefined> {
+  const baseUrl = getTimelineServerBaseUrl(timeline);
+
+  if (!baseUrl) {
+    return getMetadataByKey(key);
+  }
+
+  const { plexToken } = await getConfig();
+  const container = await requestServerWithConnection(baseUrl, key, plexToken);
   return parseMetadataItem(container);
 }
 
@@ -1423,6 +1603,13 @@ async function startPlayQueue(queue: PlayQueueInfo): Promise<void> {
   });
 }
 
+async function seekTo(offset: number): Promise<void> {
+  await requestPlayer("/player/playback/seekTo", {
+    type: "music",
+    offset: String(offset),
+  });
+}
+
 async function addToPlayQueue(
   playQueueId: string,
   item: PlayableItem,
@@ -1446,20 +1633,52 @@ async function addToPlayQueue(
   });
 }
 
-async function getExpandedPlayQueue(
-  playQueueId: string,
-): Promise<PlayQueueInfo> {
-  return getPlayQueue(playQueueId, {
-    window: 10000,
-    includeBefore: 10000,
-    includeAfter: 10000,
-  });
+async function addToPlayQueueForTimeline(
+  timeline: TimelineInfo,
+  item: PlayableItem,
+  next = false,
+): Promise<void> {
+  if (!timeline.playQueueID) {
+    throw new Error(
+      "The current Plexamp timeline does not include a play queue.",
+    );
+  }
+
+  const baseUrl = getTimelineServerBaseUrl(timeline);
+
+  if (!baseUrl) {
+    await addToPlayQueue(timeline.playQueueID, item, next);
+    return;
+  }
+
+  const { plexToken } = await getConfig();
+  const machineIdentifier =
+    timeline.machineIdentifier ?? (await getServerIdentity()).machineIdentifier;
+  const params = new URLSearchParams({ type: "audio" });
+
+  if (next) {
+    params.set("next", "1");
+  }
+
+  if (item.type === "playlist") {
+    params.set("playlistID", item.ratingKey);
+  } else {
+    params.set("uri", buildPlayableUri(machineIdentifier, item));
+  }
+
+  await requestServerWithConnection(
+    baseUrl,
+    `/playQueues/${timeline.playQueueID}?${params.toString()}`,
+    plexToken,
+    { method: "PUT" },
+  );
 }
 
 async function movePlayQueueItemInternal(
   playQueueId: string,
   playQueueItemId: string,
   afterPlayQueueItemId?: string,
+  timeline?: TimelineInfo,
 ): Promise<void> {
   const params = new URLSearchParams();
 
@@ -1468,7 +1687,8 @@ async function movePlayQueueItemInternal(
   }
 
   const suffix = params.toString() ? `?${params.toString()}` : "";
-  await requestServer(
+  await requestTimelineServer(
+    timeline ?? { state: "unknown" },
     `/playQueues/${playQueueId}/items/${playQueueItemId}/move${suffix}`,
     {
       method: "PUT",
@@ -1476,40 +1696,36 @@ async function movePlayQueueItemInternal(
   );
 }
 
-async function appendNewQueueItemsToEnd(
-  playQueueId: string,
+async function createExplicitQueueFromTimeline(
+  timeline: TimelineInfo,
   item: PlayableItem,
+  next = false,
 ): Promise<void> {
-  const queueBefore = await getExpandedPlayQueue(playQueueId);
-  const existingItemIds = new Set(
-    queueBefore.items
-      .map((queueItem) => queueItem.playQueueItemID)
-      .filter((queueItemId): queueItemId is string => Boolean(queueItemId)),
-  );
-  const lastExistingItemId = [...existingItemIds].at(-1);
+  const currentItem =
+    timeline.current?.type === "track"
+      ? timeline.current
+      : timeline.key
+        ? await getMetadataByKeyForTimeline(timeline, timeline.key)
+        : timeline.ratingKey
+          ? await getMetadataByRatingKey(timeline.ratingKey)
+          : undefined;
 
-  await addToPlayQueue(playQueueId, item);
-
-  const queueAfter = await getExpandedPlayQueue(playQueueId);
-  const newItems = queueAfter.items.filter(
-    (queueItem) =>
-      queueItem.playQueueItemID &&
-      !existingItemIds.has(queueItem.playQueueItemID),
-  );
-
-  let anchorItemId = lastExistingItemId;
-
-  for (const queueItem of newItems) {
-    if (!queueItem.playQueueItemID) {
-      continue;
-    }
-
-    await movePlayQueueItemInternal(
-      playQueueId,
-      queueItem.playQueueItemID,
-      anchorItemId,
+  if (!currentItem || currentItem.type !== "track") {
+    throw new Error(
+      "Could not access the current Plexamp queue, and the current track metadata was unavailable.",
     );
-    anchorItemId = queueItem.playQueueItemID;
+  }
+
+  const queue = await createPlayQueue(currentItem);
+  await addToPlayQueue(queue.id, item, next);
+  await startPlayQueue(queue);
+
+  if (timeline.time !== undefined && timeline.time > 0) {
+    try {
+      await seekTo(timeline.time);
+    } catch {
+      // Keep playback going even if Plexamp rejects the seek restore.
+    }
   }
 }
 
@@ -1522,7 +1738,7 @@ export async function queueItem(item: PlayableItem): Promise<void> {
   const timeline = await getTimeline();
 
   if (timeline.playQueueID) {
-    await appendNewQueueItemsToEnd(timeline.playQueueID, item);
+    await addToPlayQueueForTimeline(timeline, item);
     await refreshPlayQueue(timeline.playQueueID);
     return;
   }
@@ -1534,8 +1750,16 @@ export async function playNextItem(item: PlayableItem): Promise<void> {
   const timeline = await getTimeline();
 
   if (timeline.playQueueID) {
-    await addToPlayQueue(timeline.playQueueID, item, true);
-    await refreshPlayQueue(timeline.playQueueID);
+    try {
+      await addToPlayQueueForTimeline(timeline, item, true);
+      await refreshPlayQueue(timeline.playQueueID);
+    } catch (error) {
+      if (!isRequestStatusError(error, 404)) {
+        throw error;
+      }
+
+      await createExplicitQueueFromTimeline(timeline, item, true);
+    }
     return;
   }
 
@@ -1552,26 +1776,38 @@ export async function refreshPlayQueue(playQueueId: string): Promise<void> {
 export async function removePlayQueueItem(
   playQueueId: string,
   playQueueItemId: string,
+  timeline?: TimelineInfo,
 ): Promise<void> {
-  await requestServer(`/playQueues/${playQueueId}/items/${playQueueItemId}`, {
-    method: "DELETE",
-  });
+  await requestTimelineServer(
+    timeline ?? { state: "unknown" },
+    `/playQueues/${playQueueId}/items/${playQueueItemId}`,
+    {
+      method: "DELETE",
+    },
+  );
   await refreshPlayQueue(playQueueId);
 }
 
 export async function clearPlayQueue(
   playQueueId: string,
   preservePlayQueueItemId?: string,
+  timeline?: TimelineInfo,
 ): Promise<void> {
   let selectedItemId = preservePlayQueueItemId;
   let iterations = 0;
 
   while (iterations < 100) {
-    const queue = await getPlayQueue(playQueueId, {
-      window: 10000,
-      includeBefore: 10000,
-      includeAfter: 10000,
-    });
+    const queue = timeline?.playQueueID
+      ? await getPlayQueueForTimeline(timeline, {
+          window: 10000,
+          includeBefore: 10000,
+          includeAfter: 10000,
+        })
+      : await getPlayQueue(playQueueId, {
+          window: 10000,
+          includeBefore: 10000,
+          includeAfter: 10000,
+        });
     selectedItemId = selectedItemId ?? queue.selectedItemID;
 
     if (!selectedItemId) {
@@ -1593,9 +1829,13 @@ export async function clearPlayQueue(
     }
 
     for (const itemId of removableItemIds) {
-      await requestServer(`/playQueues/${playQueueId}/items/${itemId}`, {
-        method: "DELETE",
-      });
+      await requestTimelineServer(
+        timeline ?? { state: "unknown" },
+        `/playQueues/${playQueueId}/items/${itemId}`,
+        {
+          method: "DELETE",
+        },
+      );
     }
 
     await refreshPlayQueue(playQueueId);
@@ -1609,11 +1849,13 @@ export async function movePlayQueueItem(
   playQueueId: string,
   playQueueItemId: string,
   afterPlayQueueItemId?: string,
+  timeline?: TimelineInfo,
 ): Promise<void> {
   await movePlayQueueItemInternal(
     playQueueId,
     playQueueItemId,
     afterPlayQueueItemId,
+    timeline,
   );
   await refreshPlayQueue(playQueueId);
 }
@@ -1671,14 +1913,21 @@ export async function skipToQueueItem(track: MusicTrack): Promise<void> {
   });
 }
 
-export function getImageUrl(path?: string): string | undefined {
+export function getImageUrl(
+  path?: string,
+  options?: { baseUrl?: string; token?: string },
+): string | undefined {
   if (!path) {
     return undefined;
   }
 
-  const baseUrl = cachedManagedConfig?.plexServerUrl;
+  const baseUrl = options?.baseUrl ?? cachedManagedConfig?.plexServerUrl;
   const token =
-    cachedManagedConfig?.plexServerToken ?? cachedManagedConfig?.plexToken;
+    options?.token ??
+    (options?.baseUrl
+      ? cachedManagedConfig?.plexToken
+      : (cachedManagedConfig?.plexServerToken ??
+        cachedManagedConfig?.plexToken));
 
   if (!baseUrl || !token) {
     return undefined;

@@ -16,8 +16,12 @@ import { useCallback, useState } from "react";
 import { getImageUrl, playItem, playNextItem, queueItem } from "./plex";
 import type { PlayableItem } from "./types";
 
-export function artworkSource(path?: string, fallback: Icon = Icon.Music) {
-  const imageUrl = getImageUrl(path);
+export function artworkSource(
+  path?: string,
+  fallback: Icon = Icon.Music,
+  options?: { baseUrl?: string; token?: string },
+) {
+  const imageUrl = getImageUrl(path, options);
   return imageUrl ? { source: imageUrl } : fallback;
 }
 

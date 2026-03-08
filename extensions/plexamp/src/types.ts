@@ -62,6 +62,11 @@ export interface TimelineInfo {
   state: string;
   key?: string;
   ratingKey?: string;
+  current?: MetadataItem;
+  machineIdentifier?: string;
+  address?: string;
+  port?: string;
+  protocol?: string;
   time?: number;
   duration?: number;
   playQueueID?: string;

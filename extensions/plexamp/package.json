@@ -40,6 +40,20 @@
       "mode": "view"
     },
     {
+      "name": "disconnect-from-plex",
+      "title": "Disconnect from Plex",
+      "subtitle": "Plexamp",
+      "description": "Remove the saved Plex sign-in, server, and library selection.",
+      "mode": "view"
+    },
+    {
+      "name": "change-plex-library",
+      "title": "Change Plex Library",
+      "subtitle": "Plexamp",
+      "description": "Choose a Plex music library from the accessible servers.",
+      "mode": "view"
+    },
+    {
       "name": "search-tracks",
       "title": "Search Library",
       "subtitle": "Plexamp",

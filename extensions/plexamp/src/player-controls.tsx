@@ -17,9 +17,9 @@ import {
 } from "./format";
 import {
   clearPlayQueue,
-  getMetadataByKey,
+  getMetadataByKeyForTimeline,
   getMetadataByRatingKey,
-  getPlayQueue,
+  getPlayQueueForTimeline,
   getTimeline,
   movePlayQueueItem,
   playPause,
@@ -133,12 +133,12 @@ export default function Command() {
         let queue: PlayQueueInfo | undefined = includeQueue
           ? undefined
           : stateRef.current.queue;
-        let current: MetadataItem | undefined;
+        let current: MetadataItem | undefined = timeline.current;
         const warnings: string[] = [];
 
         if (includeQueue && timeline.playQueueID) {
           try {
-            queue = await getPlayQueue(timeline.playQueueID);
+            queue = await getPlayQueueForTimeline(timeline);
           } catch (queueError) {
             warnings.push(
               queueError instanceof Error
@@ -155,7 +155,7 @@ export default function Command() {
 
         if (!current && timeline.key) {
           try {
-            current = await getMetadataByKey(timeline.key);
+            current = await getMetadataByKeyForTimeline(timeline, timeline.key);
           } catch (metadataError) {
             warnings.push(
               metadataError instanceof Error
@@ -323,6 +323,10 @@ export default function Command() {
       : [];
   const currentTrack =
     state.current?.type === "track" ? state.current : undefined;
+  const playbackArtworkBaseUrl =
+    state.timeline.protocol && state.timeline.address && state.timeline.port
+      ? `${state.timeline.protocol}://${state.timeline.address}:${state.timeline.port}`
+      : undefined;
 
   if (plexamp.error) {
     return (
@@ -443,6 +447,7 @@ export default function Command() {
               clearPlayQueue(
                 state.queue!.id,
                 state.timeline.playQueueItemID ?? state.queue?.selectedItemID,
+                state.timeline,
               ),
             "Queue cleared",
           )
@@ -463,7 +468,9 @@ export default function Command() {
       return (
         <List.Item
           key={track.playQueueItemID ?? track.ratingKey}
-          icon={artworkSource(track.thumb)}
+          icon={artworkSource(track.thumb, Icon.Music, {
+            baseUrl: playbackArtworkBaseUrl,
+          })}
           title={formatTrackDisplayTitle(track.title, {
             parentIndex: track.parentIndex,
             index: track.index,
@@ -513,6 +520,7 @@ export default function Command() {
                           index > 1
                             ? queueItems[index - 2]?.playQueueItemID
                             : undefined,
+                          state.timeline,
                         ),
                       "Queue item moved up",
                     )
@@ -531,6 +539,7 @@ export default function Command() {
                           state.queue!.id,
                           track.playQueueItemID!,
                           nextTrack.playQueueItemID,
+                          state.timeline,
                         ),
                       "Queue item moved down",
                     )
@@ -548,6 +557,7 @@ export default function Command() {
                         removePlayQueueItem(
                           state.queue!.id,
                           track.playQueueItemID!,
+                          state.timeline,
                         ),
                       "Queue item removed",
                     )
@@ -586,7 +596,9 @@ export default function Command() {
 
       <List.Section title={nowPlayingSectionTitle}>
         <List.Item
-          icon={artworkSource(state.current?.thumb)}
+          icon={artworkSource(state.current?.thumb, Icon.Music, {
+            baseUrl: playbackArtworkBaseUrl,
+          })}
           title={currentTitle}
           subtitle={nowPlayingDetails.subtitle}
           accessories={[

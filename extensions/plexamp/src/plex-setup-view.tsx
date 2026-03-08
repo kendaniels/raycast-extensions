@@ -16,6 +16,7 @@ import {
   createPlexAuthPin,
   discoverPlexServers,
   getMusicSections,
+  getMusicSectionsForServer,
   getPlexSetupStatus,
   resolveSelectedLibrary,
   saveManagedAuthToken,
@@ -34,22 +35,27 @@ type SetupStage =
   | "loading"
   | "auth"
   | "waiting-auth"
-  | "server"
-  | "library"
+  | "library-selection"
   | "plexamp";
+
+interface ServerLibraries {
+  server: PlexServerResource;
+  libraries: LibrarySection[];
+  problem?: string;
+}
 
 interface PlexSetupViewProps {
   navigationTitle: string;
   problem?: string;
   onConfigured?: () => void;
+  forceLibrarySelection?: boolean;
 }
 
 interface SetupState {
   isLoading: boolean;
   stage: SetupStage;
   status?: PlexSetupStatus;
-  servers: PlexServerResource[];
-  libraries: LibrarySection[];
+  serverLibraries: ServerLibraries[];
   problem?: string;
 }
 
@@ -59,8 +65,7 @@ function visibleProblem(problem?: string): string | undefined {
 
 function setupDescription(status?: PlexSetupStatus, problem?: string): string {
   const details = [
-    "Choose a discovered Plex Media Server after sign-in.",
-    "Choose a music library if Plex exposes more than one.",
+    "Choose a Plex music library from the discovered servers after sign-in.",
     `Plexamp defaults to ${status?.plexampUrl ?? "http://127.0.0.1:32500"} and can be overridden in extension settings.`,
   ];
 
@@ -84,8 +89,7 @@ export function PlexSetupView(props: PlexSetupViewProps) {
   const [state, setState] = useState<SetupState>({
     isLoading: true,
     stage: "loading",
-    servers: [],
-    libraries: [],
+    serverLibraries: [],
     problem: props.problem,
   });
 
@@ -97,37 +101,64 @@ export function PlexSetupView(props: PlexSetupViewProps) {
     }));
 
     try {
-      let status = await getPlexSetupStatus();
+      const status = await getPlexSetupStatus();
 
       if (!status.hasEffectiveToken) {
         setState({
           isLoading: false,
           stage: authPin ? "waiting-auth" : "auth",
           status,
-          servers: [],
-          libraries: [],
+          serverLibraries: [],
           problem: props.problem,
         });
         return;
       }
 
-      if (!status.hasEffectiveServer) {
+      if (props.forceLibrarySelection || !status.hasEffectiveServer) {
         const servers = await discoverPlexServers();
+        const serverLibraries = await Promise.all(
+          servers.map(async (server) => {
+            try {
+              return {
+                server,
+                libraries: await getMusicSectionsForServer(server),
+              };
+            } catch (error) {
+              return {
+                server,
+                libraries: [],
+                problem: error instanceof Error ? error.message : String(error),
+              };
+            }
+          }),
+        );
 
-        if (servers.length === 1) {
-          await saveSelectedServer(servers[0]);
-          status = await getPlexSetupStatus();
-        } else {
+        const selectableLibraries = serverLibraries.flatMap((entry) =>
+          entry.libraries.map((library) => ({ server: entry.server, library })),
+        );
+
+        if (!props.forceLibrarySelection && selectableLibraries.length === 1) {
+          await saveSelectedServer(selectableLibraries[0].server);
+          await saveSelectedLibrary(selectableLibraries[0].library);
+          props.onConfigured?.();
           setState({
-            isLoading: false,
-            stage: "server",
-            status,
-            servers,
-            libraries: [],
-            problem: props.problem,
+            isLoading: true,
+            stage: "loading",
+            status: await getPlexSetupStatus(),
+            serverLibraries: [],
+            problem: undefined,
           });
           return;
         }
+
+        setState({
+          isLoading: false,
+          stage: "library-selection",
+          status,
+          serverLibraries,
+          problem: props.problem,
+        });
+        return;
       }
 
       const libraries = await getMusicSections();
@@ -141,8 +172,7 @@ export function PlexSetupView(props: PlexSetupViewProps) {
             isLoading: true,
             stage: "loading",
             status: await getPlexSetupStatus(),
-            servers: [],
-            libraries: [],
+            serverLibraries: [],
             problem: undefined,
           });
           return;
@@ -150,10 +180,21 @@ export function PlexSetupView(props: PlexSetupViewProps) {
 
         setState({
           isLoading: false,
-          stage: "library",
+          stage: "library-selection",
           status,
-          servers: [],
-          libraries,
+          serverLibraries: status.hasEffectiveServer
+            ? [
+                {
+                  server: {
+                    name: status.selectedServerName ?? "Selected Plex Server",
+                    clientIdentifier: "selected-server",
+                    owned: true,
+                    connections: [],
+                  },
+                  libraries,
+                },
+              ]
+            : [],
           problem: props.problem,
         });
         return;
@@ -164,8 +205,7 @@ export function PlexSetupView(props: PlexSetupViewProps) {
         isLoading: true,
         stage: "loading",
         status,
-        servers: [],
-        libraries: [],
+        serverLibraries: [],
         problem: undefined,
       });
     } catch (error) {
@@ -180,12 +220,11 @@ export function PlexSetupView(props: PlexSetupViewProps) {
         isLoading: false,
         stage: nextStage,
         status,
-        servers: [],
-        libraries: [],
+        serverLibraries: [],
         problem: message,
       });
     }
-  }, [authPin, props.onConfigured, props.problem]);
+  }, [authPin, props.forceLibrarySelection, props.onConfigured, props.problem]);
 
   useEffect(() => {
     void reload();
@@ -288,35 +327,17 @@ export function PlexSetupView(props: PlexSetupViewProps) {
     await reload();
   }, [reload]);
 
-  const chooseServer = useCallback(
-    async (server: PlexServerResource) => {
-      const toast = await showToast({
-        style: Toast.Style.Animated,
-        title: `Saving ${server.name}...`,
-      });
-
-      try {
-        await saveSelectedServer(server);
-        toast.style = Toast.Style.Success;
-        toast.title = `${server.name} selected`;
-        await reload();
-      } catch (error) {
-        toast.style = Toast.Style.Failure;
-        toast.title = "Could not save Plex server";
-        toast.message = error instanceof Error ? error.message : String(error);
-      }
-    },
-    [reload],
-  );
-
   const chooseLibrary = useCallback(
-    async (library: LibrarySection) => {
+    async (library: LibrarySection, server?: PlexServerResource) => {
       const toast = await showToast({
         style: Toast.Style.Animated,
         title: `Saving ${library.title}...`,
       });
 
       try {
+        if (server?.connections.length) {
+          await saveSelectedServer(server);
+        }
         await saveSelectedLibrary(library);
         toast.style = Toast.Style.Success;
         toast.title = `${library.title} selected`;
@@ -330,22 +351,22 @@ export function PlexSetupView(props: PlexSetupViewProps) {
     [reload],
   );
 
-  if (state.stage === "server") {
+  if (state.stage === "library-selection") {
     return (
       <List
         isLoading={state.isLoading}
         navigationTitle={props.navigationTitle}
-        searchBarPlaceholder="Choose a Plex Media Server"
+        searchBarPlaceholder="Choose a Plex music library"
       >
-        {state.servers.length === 0 ? (
+        {state.serverLibraries.length === 0 ? (
           <List.EmptyView
             icon={Icon.Network}
-            title="No Plex Servers Found"
+            title="No Plex Libraries Found"
             description={setupDescription(state.status, state.problem)}
             actions={
               <ActionPanel>
                 <Action
-                  title="Refresh Servers"
+                  title="Refresh Libraries"
                   icon={Icon.ArrowClockwise}
                   onAction={() => void reload()}
                 />
@@ -359,77 +380,83 @@ export function PlexSetupView(props: PlexSetupViewProps) {
             }
           />
         ) : null}
-        {state.servers.map((server) => (
-          <List.Item
+        {state.serverLibraries.map(({ server, libraries, problem }) => (
+          <List.Section
             key={server.clientIdentifier}
-            icon={Icon.Network}
             title={server.name}
             subtitle={server.preferredConnection?.uri}
-            accessories={serverAccessories(server)}
-            actions={
-              <ActionPanel>
-                <Action
-                  title="Use This Server"
-                  icon={Icon.CheckCircle}
-                  onAction={() => void chooseServer(server)}
+          >
+            {libraries.length > 0 ? (
+              libraries.map((library) => (
+                <List.Item
+                  key={`${server.clientIdentifier}:${library.key}`}
+                  icon={Icon.Music}
+                  title={library.title}
+                  accessories={[
+                    ...(state.status?.selectedLibrary === library.key
+                      ? [
+                          {
+                            icon: {
+                              source: Icon.CheckCircle,
+                              tintColor: Color.Green,
+                            },
+                          },
+                        ]
+                      : []),
+                    ...serverAccessories(server),
+                    ...(library.totalSize !== undefined
+                      ? [{ text: `${library.totalSize} artists` }]
+                      : []),
+                  ]}
+                  actions={
+                    <ActionPanel>
+                      <Action
+                        title="Use This Library"
+                        icon={Icon.CheckCircle}
+                        onAction={() => void chooseLibrary(library, server)}
+                      />
+                      <Action
+                        title="Refresh Libraries"
+                        icon={Icon.ArrowClockwise}
+                        onAction={() => void reload()}
+                      />
+                      <Action
+                        title="Reset Setup"
+                        icon={Icon.Trash}
+                        onAction={() => void resetSetup()}
+                      />
+                      <PreferencesAction />
+                    </ActionPanel>
+                  }
                 />
-                <Action
-                  title="Refresh Servers"
-                  icon={Icon.ArrowClockwise}
-                  onAction={() => void reload()}
-                />
-                <Action
-                  title="Reset Sign-In"
-                  icon={Icon.Trash}
-                  onAction={() => void resetSetup()}
-                />
-                <PreferencesAction />
-              </ActionPanel>
-            }
-          />
-        ))}
-      </List>
-    );
-  }
-
-  if (state.stage === "library") {
-    return (
-      <List
-        isLoading={state.isLoading}
-        navigationTitle={props.navigationTitle}
-        searchBarPlaceholder="Choose a Plex music library"
-      >
-        {state.libraries.map((library) => (
-          <List.Item
-            key={library.key}
-            icon={Icon.Music}
-            title={library.title}
-            accessories={
-              library.totalSize !== undefined
-                ? [{ text: `${library.totalSize} artists` }]
-                : []
-            }
-            actions={
-              <ActionPanel>
-                <Action
-                  title="Use This Library"
-                  icon={Icon.CheckCircle}
-                  onAction={() => void chooseLibrary(library)}
-                />
-                <Action
-                  title="Refresh Libraries"
-                  icon={Icon.ArrowClockwise}
-                  onAction={() => void reload()}
-                />
-                <Action
-                  title="Reset Setup"
-                  icon={Icon.Trash}
-                  onAction={() => void resetSetup()}
-                />
-                <PreferencesAction />
-              </ActionPanel>
-            }
-          />
+              ))
+            ) : (
+              <List.Item
+                key={`${server.clientIdentifier}:empty`}
+                icon={Icon.Warning}
+                title="No Music Libraries Available"
+                subtitle={
+                  problem ?? "This server did not expose any artist libraries."
+                }
+                accessories={serverAccessories(server)}
+                actions={
+                  <ActionPanel>
+                    <Action
+                      title="Refresh Libraries"
+                      icon={Icon.ArrowClockwise}
+                      onAction={() => void reload()}
+                    />
+                    <Action
+                      title="Reset Setup"
+                      icon={Icon.Trash}
+                      onAction={() => void resetSetup()}
+                    />
+                    <PreferencesAction />
+                  </ActionPanel>
+                }
+              />
+            )}
+          </List.Section>
         ))}
       </List>
     );
