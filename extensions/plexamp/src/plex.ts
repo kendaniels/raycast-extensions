@@ -393,6 +393,15 @@ function getFirstNestedTag(item: XmlNode, key: string): string | undefined {
   return asString((node as XmlNode).tag);
 }
 
+function getPrimaryMediaNode(item: XmlNode): XmlNode | undefined {
+  return firstObject(item.Media);
+}
+
+function getPrimaryPartNode(item: XmlNode): XmlNode | undefined {
+  const mediaNode = getPrimaryMediaNode(item);
+  return mediaNode ? firstObject(mediaNode.Part) : firstObject(item.Part);
+}
+
 function firstObject(values: unknown): XmlNode | undefined {
   return arrayify(values).find(
     (node): node is XmlNode => typeof node === "object",
@@ -476,6 +485,8 @@ function parseTrack(node: XmlNode): MusicTrack {
   const librarySectionKey = normalizeLibrarySectionKey(
     asString(node.librarySectionKey) ?? asString(node.librarySectionID),
   );
+  const mediaNode = getPrimaryMediaNode(node);
+  const partNode = getPrimaryPartNode(node);
 
   return {
     type: "track",
@@ -488,6 +499,18 @@ function parseTrack(node: XmlNode): MusicTrack {
     grandparentRatingKey: asString(node.grandparentRatingKey),
     grandparentTitle: asString(node.grandparentTitle),
     librarySectionKey,
+    audioFormat:
+      asString(mediaNode?.audioCodec) ??
+      asString(node.audioCodec) ??
+      asString(mediaNode?.container) ??
+      asString(partNode?.container) ??
+      asString(node.container) ??
+      getFirstNestedTag(node, "Format") ??
+      asString(node.format),
+    bitrate:
+      asNumber(mediaNode?.bitrate) ??
+      asNumber(partNode?.bitrate) ??
+      asNumber(node.bitrate),
     duration: asNumber(node.duration),
     index: asNumber(node.index),
     parentIndex: asNumber(node.parentIndex),

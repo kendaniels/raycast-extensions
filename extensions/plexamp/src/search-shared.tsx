@@ -10,6 +10,7 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { AlbumList, AlbumTrackList } from "./browse-media";
 import {
+  getTrackAccessoryValues,
   formatDuration,
   formatTrackDisplayTitle,
   getTrackRatingDisplayMode,
@@ -225,30 +226,51 @@ function SearchResultsList(props: {
 
       {props.tracks.length > 0 ? (
         <List.Section title="Songs">
-          {props.tracks.map((track) => (
-            <List.Item
-              key={`track-${track.ratingKey}`}
-              icon={artworkSource(track.thumb)}
-              title={formatTrackDisplayTitle(track.title, {
-                parentIndex: track.parentIndex,
-                index: track.index,
-                userRating: track.userRating,
-                displayMode: ratingDisplayMode,
-              })}
-              subtitle={[track.grandparentTitle, track.parentTitle]
-                .filter(Boolean)
-                .join(" - ")}
-              accessories={[{ text: formatDuration(track.duration) }]}
-              actions={
-                <SearchActions
-                  item={track}
-                  onPlay={props.onPlay}
-                  onPlayNext={props.onPlayNext}
-                  onQueue={props.onQueue}
+          {props.tracks.map((track) =>
+            (() => {
+              const accessories = getTrackAccessoryValues(track);
+
+              return (
+                <List.Item
+                  key={`track-${track.ratingKey}`}
+                  icon={artworkSource(track.thumb)}
+                  title={formatTrackDisplayTitle(track.title, {
+                    parentIndex: track.parentIndex,
+                    index: track.index,
+                    userRating: track.userRating,
+                    displayMode: ratingDisplayMode,
+                  })}
+                  subtitle={[track.grandparentTitle, track.parentTitle]
+                    .filter(Boolean)
+                    .join(" - ")}
+                  accessories={[
+                    ...(accessories.metadataBadge
+                      ? [
+                          {
+                            tag: {
+                              value: accessories.metadataBadge,
+                              color: Color.SecondaryText,
+                            },
+                            tooltip: "Format and Bitrate",
+                          },
+                        ]
+                      : []),
+                    ...(accessories.durationText
+                      ? [{ text: accessories.durationText }]
+                      : []),
+                  ]}
+                  actions={
+                    <SearchActions
+                      item={track}
+                      onPlay={props.onPlay}
+                      onPlayNext={props.onPlayNext}
+                      onQueue={props.onQueue}
+                    />
+                  }
                 />
-              }
-            />
-          ))}
+              );
+            })(),
+          )}
         </List.Section>
       ) : null}
     </>

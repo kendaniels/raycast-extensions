@@ -41,6 +41,8 @@ export interface MusicTrack {
   grandparentRatingKey?: string;
   grandparentTitle?: string;
   librarySectionKey?: string;
+  audioFormat?: string;
+  bitrate?: number;
   duration?: number;
   index?: number;
   parentIndex?: number;

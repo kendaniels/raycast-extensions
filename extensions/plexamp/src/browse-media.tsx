@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 import { useNavigation } from "@raycast/api";
 
 import {
+  getTrackAccessoryValues,
   formatDuration,
   formatTrackDisplayTitle,
   getTrackRatingDisplayMode,
@@ -605,33 +606,54 @@ function TrackList(props: {
           }
         />
       ) : null}
-      {props.tracks.map((track) => (
-        <List.Item
-          key={track.ratingKey}
-          icon={artworkSource(track.thumb ?? props.coverPath)}
-          title={formatTrackDisplayTitle(track.title, {
-            parentIndex: track.parentIndex,
-            index: track.index,
-            userRating: track.userRating,
-            displayMode: ratingDisplayMode,
-          })}
-          subtitle={[track.grandparentTitle, track.parentTitle]
-            .filter(Boolean)
-            .join(" - ")}
-          accessories={[{ text: formatDuration(track.duration) }]}
-          actions={
-            <ActionPanel>
-              <PlaybackActions
-                item={track}
-                onPlay={props.onPlay}
-                onPlayNext={props.onPlayNext}
-                onQueue={props.onQueue}
-                nowPlayingShortcut={{ modifiers: ["cmd"], key: "n" }}
-              />
-            </ActionPanel>
-          }
-        />
-      ))}
+      {props.tracks.map((track) =>
+        (() => {
+          const accessories = getTrackAccessoryValues(track);
+
+          return (
+            <List.Item
+              key={track.ratingKey}
+              icon={artworkSource(track.thumb ?? props.coverPath)}
+              title={formatTrackDisplayTitle(track.title, {
+                parentIndex: track.parentIndex,
+                index: track.index,
+                userRating: track.userRating,
+                displayMode: ratingDisplayMode,
+              })}
+              subtitle={[track.grandparentTitle, track.parentTitle]
+                .filter(Boolean)
+                .join(" - ")}
+              accessories={[
+                ...(accessories.metadataBadge
+                  ? [
+                      {
+                        tag: {
+                          value: accessories.metadataBadge,
+                          color: Color.SecondaryText,
+                        },
+                        tooltip: "Format and Bitrate",
+                      },
+                    ]
+                  : []),
+                ...(accessories.durationText
+                  ? [{ text: accessories.durationText }]
+                  : []),
+              ]}
+              actions={
+                <ActionPanel>
+                  <PlaybackActions
+                    item={track}
+                    onPlay={props.onPlay}
+                    onPlayNext={props.onPlayNext}
+                    onQueue={props.onQueue}
+                    nowPlayingShortcut={{ modifiers: ["cmd"], key: "n" }}
+                  />
+                </ActionPanel>
+              }
+            />
+          );
+        })(),
+      )}
     </List>
   );
 }

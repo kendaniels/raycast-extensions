@@ -1,6 +1,7 @@
 import {
   Action,
   ActionPanel,
+  Color,
   Icon,
   LaunchType,
   List,
@@ -11,6 +12,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
+  getTrackAccessoryValues,
   formatDuration,
   formatTrackDisplayTitle,
   getTrackRatingDisplayMode,
@@ -100,6 +102,14 @@ function getRepeatAccessoryText(repeat?: string): string {
     default:
       return "Loop off";
   }
+}
+
+function getPlaybackStateText(state?: string): string {
+  if (!state) {
+    return "Unknown";
+  }
+
+  return state.charAt(0).toUpperCase() + state.slice(1);
 }
 
 export default function Command() {
@@ -297,18 +307,17 @@ export default function Command() {
     };
   }, [state.current, state.timeline.state]);
 
-  const progressAccessory = state.timeline.duration
-    ? [
-        {
-          text: `${formatDuration(state.timeline.time)} / ${formatDuration(state.timeline.duration)}`,
-        },
-      ]
-    : [];
+  const progressText = state.timeline.duration
+    ? `${formatDuration(state.timeline.time)} / ${formatDuration(state.timeline.duration)}`
+    : undefined;
+  const progressAccessory = progressText ? [{ text: progressText }] : [];
   const shuffleEnabled = isShuffleEnabled(state.timeline.shuffle);
   const repeatMode = getRepeatMode(state.timeline.repeat);
   const nowPlayingSectionTitle = `Now Playing • ${getRepeatAccessoryText(
     repeatMode,
-  )} • ${shuffleEnabled ? "Shuffle on" : "Shuffle off"}`;
+  )} • ${shuffleEnabled ? "Shuffle on" : "Shuffle off"} • ${getPlaybackStateText(
+    state.timeline.state,
+  )}`;
   const currentQueueIndex =
     state.queue?.items.findIndex(
       (track) => track.playQueueItemID === state.timeline.playQueueItemID,
@@ -480,7 +489,26 @@ export default function Command() {
           subtitle={[track.grandparentTitle, track.parentTitle]
             .filter(Boolean)
             .join(" - ")}
-          accessories={[{ text: formatDuration(track.duration) }]}
+          accessories={(() => {
+            const accessories = getTrackAccessoryValues(track);
+
+            return [
+              ...(accessories.metadataBadge
+                ? [
+                    {
+                      tag: {
+                        value: accessories.metadataBadge,
+                        color: Color.SecondaryText,
+                      },
+                      tooltip: "Format and Bitrate",
+                    },
+                  ]
+                : []),
+              ...(accessories.durationText
+                ? [{ text: accessories.durationText }]
+                : []),
+            ];
+          })()}
           actions={
             <ActionPanel>
               <Action
@@ -601,10 +629,32 @@ export default function Command() {
           })}
           title={currentTitle}
           subtitle={nowPlayingDetails.subtitle}
-          accessories={[
-            { text: state.timeline.state || "unknown" },
-            ...progressAccessory,
-          ]}
+          accessories={(() => {
+            if (!currentTrack) {
+              return progressAccessory;
+            }
+
+            const accessories = getTrackAccessoryValues(currentTrack, {
+              durationText: progressText,
+            });
+
+            return [
+              ...(accessories.metadataBadge
+                ? [
+                    {
+                      tag: {
+                        value: accessories.metadataBadge,
+                        color: Color.SecondaryText,
+                      },
+                      tooltip: "Format and Bitrate",
+                    },
+                  ]
+                : []),
+              ...(accessories.durationText
+                ? [{ text: accessories.durationText }]
+                : []),
+            ];
+          })()}
           actions={
             <ActionPanel>
               <Action

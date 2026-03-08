@@ -1,5 +1,5 @@
 import { getPreferenceValues } from "@raycast/api";
-import type { MetadataItem } from "./types";
+import type { MetadataItem, MusicTrack } from "./types";
 
 export function formatDuration(milliseconds?: number): string {
   if (!milliseconds || milliseconds < 0) {
@@ -141,4 +141,53 @@ export function formatTrackDisplayTitle(
   const rating = formatTrackRating(options?.userRating, options?.displayMode);
 
   return `${prefix}${title}${rating ? ` ${rating}` : ""}`;
+}
+
+export function formatTrackAudioFormat(format?: string): string | undefined {
+  const normalized = format?.trim().replace(/[_-]+/g, " ");
+
+  if (!normalized) {
+    return undefined;
+  }
+
+  return normalized === normalized.toLowerCase()
+    ? normalized.toUpperCase()
+    : normalized;
+}
+
+export function formatTrackBitrate(bitrate?: number): string | undefined {
+  if (!bitrate || bitrate <= 0) {
+    return undefined;
+  }
+
+  return `${Math.round(bitrate)}kbps`;
+}
+
+export function formatTrackMetadataBadge(
+  track: Pick<MusicTrack, "audioFormat" | "bitrate">,
+): string | undefined {
+  const formattedFormat = formatTrackAudioFormat(track.audioFormat);
+  const formattedBitrate = formatTrackBitrate(track.bitrate);
+
+  if (formattedFormat && formattedBitrate) {
+    return `${formattedFormat}-${formattedBitrate}`;
+  }
+
+  return formattedFormat ?? formattedBitrate;
+}
+
+export function getTrackAccessoryValues(
+  track: Pick<MusicTrack, "audioFormat" | "bitrate" | "duration">,
+  options?: { durationText?: string },
+): { metadataBadge?: string; durationText?: string } {
+  const durationText = options?.durationText
+    ? options.durationText
+    : track.duration
+      ? formatDuration(track.duration)
+      : undefined;
+
+  return {
+    metadataBadge: formatTrackMetadataBadge(track),
+    durationText,
+  };
 }
