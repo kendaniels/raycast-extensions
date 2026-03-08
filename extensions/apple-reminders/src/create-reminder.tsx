@@ -23,6 +23,9 @@ import { getIntervalValidationError, getPriorityIcon } from "./helpers";
 import useCreateReminderFormLayout from "./hooks/useCreateReminderFormLayout";
 import { List, Reminder, useData } from "./hooks/useData";
 import useLocations, { Location } from "./hooks/useLocations";
+import usePostCreateActions from "./hooks/usePostCreateActions";
+import ManageCreateActions from "./manage-create-actions";
+import { runPostCreateActions } from "./post-create-shortcuts";
 
 export type Frequency = "daily" | "weekdays" | "weekends" | "weekly" | "monthly" | "yearly";
 export type NewReminder = {
@@ -62,10 +65,15 @@ type CreateReminderFormProps = {
   mutate?: MutatePromise<{ reminders: Reminder[]; lists: List[] } | undefined>;
 };
 
+type SubmitOptions = {
+  closeWindowAfterCreate?: boolean;
+};
+
 export function CreateReminderForm({ draftValues, listId, mutate }: CreateReminderFormProps) {
   const { pop } = useNavigation();
   const { data, isLoading } = useData();
   const { value: formLayout, isLoading: isLoadingLayout } = useCreateReminderFormLayout();
+  const { value: postCreateActions } = usePostCreateActions();
 
   const { locations, addLocation } = useLocations();
 
@@ -86,6 +94,98 @@ export function CreateReminderForm({ draftValues, listId, mutate }: CreateRemind
     initialDueDate = draftValues?.dueDate;
   } else if (selectTodayAsDefault) {
     initialDueDate = addMilliseconds(startOfToday(), 1);
+  }
+
+  async function submitReminder(values: CreateReminderValues, options?: SubmitOptions) {
+    try {
+      const payload: NewReminder = {
+        title: values.title,
+        listId: values.listId,
+      };
+
+      if (values.notes) {
+        payload.notes = values.notes;
+      }
+
+      if (values.dueDate) {
+        payload.dueDate = Form.DatePicker.isFullDay(values.dueDate)
+          ? format(values.dueDate, "yyyy-MM-dd")
+          : values.dueDate.toISOString();
+      }
+
+      if (values.isRecurring) {
+        payload.recurrence = {
+          frequency: values.frequency as Frequency,
+          interval: Number(values.interval),
+        };
+      }
+
+      if (values.priority) {
+        payload.priority = values.priority;
+      }
+
+      if (values.location === "custom" || values.address) {
+        payload.address = values.address;
+
+        if (values.proximity) {
+          payload.proximity = values.proximity;
+        }
+
+        if (values.radius) {
+          payload.radius = parseInt(values.radius);
+        }
+      }
+
+      const savedLocation = locations.find((location) => location.id === values.location);
+      if (savedLocation) {
+        payload.address = savedLocation.address;
+        payload.proximity = savedLocation.proximity;
+        payload.radius = parseInt(savedLocation.radius);
+      }
+
+      const reminder = await createReminder(payload);
+      await runPostCreateActions(postCreateActions, "create-form");
+
+      if (options?.closeWindowAfterCreate) {
+        await closeMainWindow({ popToRootType: PopToRootType.Immediate });
+      }
+
+      await showToast({
+        style: Toast.Style.Success,
+        title: "Created Reminder",
+        message: reminder.title,
+        primaryAction: {
+          title: "Open in Reminders",
+          shortcut: { modifiers: ["cmd", "shift"], key: "o" },
+          onAction: () => {
+            open(reminder.openUrl);
+          },
+        },
+      });
+
+      // Redirect the user to the list if coming from an empty state
+      if (listId && mutate) {
+        await mutate();
+        pop();
+      }
+
+      setValue("title", "");
+      setValue("notes", "");
+      setValue("location", "");
+      setValue("address", "");
+      setValue("radius", "");
+
+      focus("title");
+    } catch (error) {
+      console.log(error);
+      const message = error instanceof Error ? error.message : JSON.stringify(error);
+
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Unable to create reminder",
+        message,
+      });
+    }
   }
 
   const { itemProps, handleSubmit, focus, values, setValue } = useForm<CreateReminderValues>({
@@ -115,90 +215,7 @@ export function CreateReminderForm({ draftValues, listId, mutate }: CreateRemind
       },
     },
     async onSubmit(values) {
-      try {
-        const payload: NewReminder = {
-          title: values.title,
-          listId: values.listId,
-        };
-
-        if (values.notes) {
-          payload.notes = values.notes;
-        }
-
-        if (values.dueDate) {
-          payload.dueDate = Form.DatePicker.isFullDay(values.dueDate)
-            ? format(values.dueDate, "yyyy-MM-dd")
-            : values.dueDate.toISOString();
-        }
-
-        if (values.isRecurring) {
-          payload.recurrence = {
-            frequency: values.frequency as Frequency,
-            interval: Number(values.interval),
-          };
-        }
-
-        if (values.priority) {
-          payload.priority = values.priority;
-        }
-
-        if (values.location === "custom" || values.address) {
-          payload.address = values.address;
-
-          if (values.proximity) {
-            payload.proximity = values.proximity;
-          }
-
-          if (values.radius) {
-            payload.radius = parseInt(values.radius);
-          }
-        }
-
-        const savedLocation = locations.find((location) => location.id === values.location);
-        if (savedLocation) {
-          payload.address = savedLocation.address;
-          payload.proximity = savedLocation.proximity;
-          payload.radius = parseInt(savedLocation.radius);
-        }
-
-        const reminder = await createReminder(payload);
-
-        await showToast({
-          style: Toast.Style.Success,
-          title: "Created Reminder",
-          message: reminder.title,
-          primaryAction: {
-            title: "Open in Reminders",
-            shortcut: { modifiers: ["cmd", "shift"], key: "o" },
-            onAction: () => {
-              open(reminder.openUrl);
-            },
-          },
-        });
-
-        // Redirect the user to the list if coming from an empty state
-        if (listId && mutate) {
-          await mutate();
-          pop();
-        }
-
-        setValue("title", "");
-        setValue("notes", "");
-        setValue("location", "");
-        setValue("address", "");
-        setValue("radius", "");
-
-        focus("title");
-      } catch (error) {
-        console.log(error);
-        const message = error instanceof Error ? error.message : JSON.stringify(error);
-
-        await showToast({
-          style: Toast.Style.Failure,
-          title: "Unable to create reminder",
-          message,
-        });
-      }
+      await submitReminder(values);
     },
   });
 
@@ -379,10 +396,7 @@ export function CreateReminderForm({ draftValues, listId, mutate }: CreateRemind
           <Action.SubmitForm icon={Icon.Plus} onSubmit={handleSubmit} title="Create Reminder" />
           <Action.SubmitForm
             icon={Icon.Window}
-            onSubmit={async (values) => {
-              await closeMainWindow({ popToRootType: PopToRootType.Immediate });
-              await handleSubmit(values as CreateReminderValues);
-            }}
+            onSubmit={(values) => submitReminder(values as CreateReminderValues, { closeWindowAfterCreate: true })}
             title="Create Reminder and Close Window"
           />
           <Action.Push
@@ -396,6 +410,7 @@ export function CreateReminderForm({ draftValues, listId, mutate }: CreateRemind
             title="Customize Create Reminder Form"
             target={<CustomizeCreateReminderForm />}
           />
+          <Action.Push icon={Icon.Bolt} title="Manage Create Actions" target={<ManageCreateActions />} />
         </ActionPanel>
       }
       enableDrafts={!listId}

@@ -233,6 +233,13 @@
       "subtitle": "Apple Reminders",
       "description": "Choose which fields appear in the create reminder form and reorder them.",
       "mode": "view"
+    },
+    {
+      "name": "manage-create-actions",
+      "title": "Manage Create Actions",
+      "subtitle": "Apple Reminders",
+      "description": "Choose which Shortcuts run after reminders are created.",
+      "mode": "view"
     }
   ],
   "tools": [
