@@ -934,6 +934,58 @@ function parsePlexampClientInfo(container: XmlNode): PlexampClientInfo {
   };
 }
 
+function isIpv4LanAddress(address: string): boolean {
+  const octets = address.split(".").map((value) => Number.parseInt(value, 10));
+
+  if (
+    octets.length !== 4 ||
+    octets.some((octet) => Number.isNaN(octet) || octet < 0 || octet > 255)
+  ) {
+    return false;
+  }
+
+  return (
+    octets[0] === 10 ||
+    octets[0] === 127 ||
+    (octets[0] === 169 && octets[1] === 254) ||
+    (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
+    (octets[0] === 192 && octets[1] === 168)
+  );
+}
+
+function isIpv6LanAddress(address: string): boolean {
+  const normalized = address.toLowerCase();
+
+  return (
+    normalized === "::1" ||
+    normalized.startsWith("fe80:") ||
+    normalized.startsWith("fc") ||
+    normalized.startsWith("fd")
+  );
+}
+
+function isLanAddress(address?: string): boolean {
+  if (!address) {
+    return false;
+  }
+
+  const normalized = address
+    .trim()
+    .replace(/^\[(.*)\]$/, "$1")
+    .toLowerCase();
+
+  if (!normalized) {
+    return false;
+  }
+
+  return (
+    normalized === "localhost" ||
+    normalized.endsWith(".local") ||
+    isIpv4LanAddress(normalized) ||
+    isIpv6LanAddress(normalized)
+  );
+}
+
 interface PlexPinResponse {
   id: number | string;
   code: string;
@@ -958,12 +1010,15 @@ function buildPlexAuthUrl(code: string, clientIdentifier: string): string {
 }
 
 function parsePlexServerConnection(node: XmlNode): PlexServerConnection {
+  const address = asString(node.address);
+
   return {
     uri: requiredString(node.uri, "uri"),
-    address: asString(node.address),
+    address,
     port: asString(node.port),
     protocol: asString(node.protocol),
     local: asBoolean(node.local),
+    localNetwork: isLanAddress(address),
     relay: asBoolean(node.relay),
   };
 }
@@ -971,7 +1026,7 @@ function parsePlexServerConnection(node: XmlNode): PlexServerConnection {
 function connectionRank(connection: PlexServerConnection): number {
   return [
     connection.relay ? 100 : 0,
-    connection.local ? 0 : 10,
+    connection.localNetwork ? 0 : 10,
     connection.protocol === "https" ? 0 : 1,
   ].reduce((sum, value) => sum + value, 0);
 }

@@ -117,6 +117,7 @@ export interface PlexServerConnection {
   port?: string;
   protocol?: string;
   local?: boolean;
+  localNetwork?: boolean;
   relay?: boolean;
 }
 

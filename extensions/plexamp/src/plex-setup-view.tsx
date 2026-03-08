@@ -3,8 +3,10 @@ import {
   ActionPanel,
   Color,
   Icon,
+  LaunchType,
   List,
   Toast,
+  launchCommand,
   open,
   showToast,
 } from "@raycast/api";
@@ -74,9 +76,8 @@ function setupDescription(status?: PlexSetupStatus, problem?: string): string {
 
 function serverAccessories(server: PlexServerResource): List.Item.Accessory[] {
   return [
-    ...(server.owned ? [{ tag: { value: "Owned", color: Color.Green } }] : []),
-    ...(server.preferredConnection?.local
-      ? [{ tag: { value: "Local", color: Color.Blue } }]
+    ...(server.preferredConnection?.localNetwork
+      ? [{ tag: { value: "LAN", color: Color.Blue } }]
       : []),
     ...(server.sourceTitle
       ? [{ text: server.sourceTitle, tooltip: "Shared By" }]
@@ -289,7 +290,14 @@ export function PlexSetupView(props: PlexSetupViewProps) {
             style: Toast.Style.Success,
             title: "Signed in to Plex",
           });
-          await reload();
+          try {
+            await launchCommand({
+              name: "change-plex-library",
+              type: LaunchType.UserInitiated,
+            });
+          } catch {
+            await reload();
+          }
         })
         .catch((error) => {
           if (!cancelled) {

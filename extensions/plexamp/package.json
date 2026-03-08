@@ -48,9 +48,9 @@
     },
     {
       "name": "change-plex-library",
-      "title": "Change Plex Library",
+      "title": "Choose Plex Library",
       "subtitle": "Plexamp",
-      "description": "Choose a Plex music library from the accessible servers.",
+      "description": "Choose a Plex music library from the available servers.",
       "mode": "view"
     },
     {

@@ -5,7 +5,7 @@ import { PlexSetupView } from "./plex-setup-view";
 export default function Command() {
   return (
     <PlexSetupView
-      navigationTitle="Change Plex Library"
+      navigationTitle="Choose Plex Library"
       forceLibrarySelection
       onConfigured={() =>
         launchCommand({
