@@ -1,5 +1,14 @@
 # Apple Reminders Changelog
 
+## [Manage Create Actions] - {PR_MERGE_DATE}
+
+- Add a new "Manage Create Actions" command to configure Apple Shortcuts that run after reminders are created.
+- Allow shortcuts to be searched from the local `shortcuts` CLI and added as post-create actions.
+- Add support for enabling, disabling, reordering, renaming, and removing configured create actions.
+- Add per-action scope so shortcuts can run for "Create Reminder", "Quick Add Reminder", or both.
+- Add a "Manage Create Actions" action directly inside the Create Reminder form.
+- Run configured shortcuts after reminder creation without passing any input.
+
 ## [Customize Create Reminder Form] - {PR_MERGE_DATE}
 
 - Add a new "Customize Create Reminder Form" command to control which field groups appear in the Create Reminder form.

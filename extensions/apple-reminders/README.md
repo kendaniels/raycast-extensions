@@ -36,6 +36,22 @@ Recurrence remains tied to the date field, so it only appears when Date is enabl
 
 You can open the customization UI either from Raycast search with the "Customize Create Reminder Form" command or from the action panel inside "Create Reminder."
 
+## Manage Create Actions
+
+Use the "Manage Create Actions" command to choose which Apple Shortcuts should run after a reminder is created.
+
+You can:
+
+- Search your installed shortcuts and add them as post-create actions
+- Enable or disable actions without removing them
+- Reorder actions to control the run order
+- Limit actions to the "Create Reminder" flow, the "Quick Add Reminder" flow, or both
+- Rename the display label used inside Raycast
+
+Shortcuts are run without any input. This makes the feature flexible for reminder-related automations such as tag processing, but you can also use it for unrelated workflows.
+
+You can open the create actions UI either from Raycast search with the "Manage Create Actions" command or from the action panel inside "Create Reminder."
+
 ## Create Reminder
 
 Use "Create Reminder" when you want full control over the reminder fields.
