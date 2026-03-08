@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { getMusicSections, resolveSelectedLibrary } from "./plex";
+import {
+  getMusicSections,
+  getPlexSetupStatus,
+  resolveSelectedLibrary,
+} from "./plex";
 import type { LibrarySection } from "./types";
 
 interface LibrarySelectionState {
   isLoading: boolean;
   libraries: LibrarySection[];
   selectedLibrary?: LibrarySection;
+  selectedServerName?: string;
   error?: string;
 }
 
@@ -20,14 +25,23 @@ export function useLibrarySelection() {
     setState((current) => ({ ...current, isLoading: true, error: undefined }));
 
     try {
-      const libraries = await getMusicSections();
+      const [libraries, setupStatus] = await Promise.all([
+        getMusicSections(),
+        getPlexSetupStatus(),
+      ]);
       const selectedLibrary = await resolveSelectedLibrary(libraries);
-      setState({ isLoading: false, libraries, selectedLibrary });
+      setState({
+        isLoading: false,
+        libraries,
+        selectedLibrary,
+        selectedServerName: setupStatus.selectedServerName,
+      });
     } catch (error) {
       setState({
         isLoading: false,
         libraries: [],
         selectedLibrary: undefined,
+        selectedServerName: undefined,
         error: error instanceof Error ? error.message : String(error),
       });
     }

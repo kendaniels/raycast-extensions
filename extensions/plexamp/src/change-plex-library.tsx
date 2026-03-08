@@ -1,3 +1,5 @@
+import { LaunchType, launchCommand } from "@raycast/api";
+
 import { PlexSetupView } from "./plex-setup-view";
 
 export default function Command() {
@@ -5,6 +7,12 @@ export default function Command() {
     <PlexSetupView
       navigationTitle="Change Plex Library"
       forceLibrarySelection
+      onConfigured={() =>
+        launchCommand({
+          name: "browse-media",
+          type: LaunchType.UserInitiated,
+        })
+      }
     />
   );
 }

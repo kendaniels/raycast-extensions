@@ -47,7 +47,7 @@ interface ServerLibraries {
 interface PlexSetupViewProps {
   navigationTitle: string;
   problem?: string;
-  onConfigured?: () => void;
+  onConfigured?: () => void | Promise<void>;
   forceLibrarySelection?: boolean;
 }
 
@@ -115,6 +115,14 @@ export function PlexSetupView(props: PlexSetupViewProps) {
       }
 
       if (props.forceLibrarySelection || !status.hasEffectiveServer) {
+        setState({
+          isLoading: true,
+          stage: "library-selection",
+          status,
+          serverLibraries: [],
+          problem: undefined,
+        });
+
         const servers = await discoverPlexServers();
         const serverLibraries = await Promise.all(
           servers.map(async (server) => {
@@ -160,6 +168,14 @@ export function PlexSetupView(props: PlexSetupViewProps) {
         });
         return;
       }
+
+      setState({
+        isLoading: true,
+        stage: "library-selection",
+        status,
+        serverLibraries: [],
+        problem: undefined,
+      });
 
       const libraries = await getMusicSections();
       const selectedLibrary = await resolveSelectedLibrary(libraries);
@@ -341,24 +357,34 @@ export function PlexSetupView(props: PlexSetupViewProps) {
         await saveSelectedLibrary(library);
         toast.style = Toast.Style.Success;
         toast.title = `${library.title} selected`;
-        await reload();
+
+        if (props.onConfigured) {
+          await props.onConfigured();
+        } else {
+          await reload();
+        }
       } catch (error) {
         toast.style = Toast.Style.Failure;
         toast.title = "Could not save music library";
         toast.message = error instanceof Error ? error.message : String(error);
       }
     },
-    [reload],
+    [props.onConfigured, reload],
   );
 
   if (state.stage === "library-selection") {
     return (
       <List
-        isLoading={state.isLoading}
+        isLoading={state.isLoading && state.serverLibraries.length > 0}
         navigationTitle={props.navigationTitle}
         searchBarPlaceholder="Choose a Plex music library"
       >
-        {state.serverLibraries.length === 0 ? (
+        {state.isLoading && state.serverLibraries.length === 0 ? (
+          <List.EmptyView
+            icon={Icon.MagnifyingGlass}
+            title="Searching for libraries, please wait"
+          />
+        ) : state.serverLibraries.length === 0 ? (
           <List.EmptyView
             icon={Icon.Network}
             title="No Plex Libraries Found"
@@ -380,7 +406,7 @@ export function PlexSetupView(props: PlexSetupViewProps) {
             }
           />
         ) : null}
-        {state.serverLibraries.map(({ server, libraries, problem }) => (
+        {state.serverLibraries.map(({ server, libraries }) => (
           <List.Section
             key={server.clientIdentifier}
             title={server.name}
@@ -435,9 +461,6 @@ export function PlexSetupView(props: PlexSetupViewProps) {
                 key={`${server.clientIdentifier}:empty`}
                 icon={Icon.Warning}
                 title="No Music Libraries Available"
-                subtitle={
-                  problem ?? "This server did not expose any artist libraries."
-                }
                 accessories={serverAccessories(server)}
                 actions={
                   <ActionPanel>

@@ -39,6 +39,13 @@ interface SearchState {
   error?: string;
 }
 
+function getSearchNavigationTitle(
+  libraryName: string,
+  serverName?: string,
+): string {
+  return `Search: ${libraryName} on ${serverName ?? "Plex Media Server"}`;
+}
+
 function SearchActions(props: {
   item: PlayableItem;
   browseTarget?: ReactNode;
@@ -321,7 +328,10 @@ export function SearchCommand() {
       searchBarPlaceholder="Search songs, albums, and artists"
       onSearchTextChange={setQuery}
       searchText={query}
-      navigationTitle={`Search: ${librarySelection.selectedLibrary.title}`}
+      navigationTitle={getSearchNavigationTitle(
+        librarySelection.selectedLibrary.title,
+        librarySelection.selectedServerName,
+      )}
       actions={
         <ActionPanel>
           <NowPlayingAction shortcut={{ modifiers: ["cmd"], key: "n" }} />

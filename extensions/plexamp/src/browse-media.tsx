@@ -53,6 +53,13 @@ interface BrowseLaunchContext {
   sectionKey?: string;
 }
 
+function getBrowseNavigationTitle(
+  libraryName: string,
+  serverName?: string,
+): string {
+  return `Browse: ${libraryName} on ${serverName ?? "Plex Media Server"}`;
+}
+
 function albumAccessories(album: MusicAlbum): List.Item.Accessory[] {
   return [
     ...(album.year
@@ -331,7 +338,10 @@ function RootContent() {
   return (
     <List
       isLoading={isLoading}
-      navigationTitle={selectedLibrary.title}
+      navigationTitle={getBrowseNavigationTitle(
+        selectedLibrary.title,
+        libraries.selectedServerName,
+      )}
       searchBarPlaceholder="Filter artists and playlists"
       actions={
         <ActionPanel>
