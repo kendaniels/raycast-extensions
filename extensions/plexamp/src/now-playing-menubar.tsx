@@ -107,7 +107,7 @@ export default function Command() {
           title="Open Now Playing"
           icon={Icon.AppWindow}
           onAction={() =>
-            launchCommand({
+            void launchCommand({
               name: "player-controls",
               type: LaunchType.UserInitiated,
             })

@@ -25,6 +25,7 @@ import {
   saveSelectedLibrary,
   saveSelectedServer,
 } from "./plex";
+import { isRequestStatusError } from "./plex-request";
 import { PreferencesAction } from "./shared-ui";
 import type {
   LibrarySection,
@@ -229,7 +230,7 @@ export function PlexSetupView(props: PlexSetupViewProps) {
       const message = error instanceof Error ? error.message : String(error);
       const status = await getPlexSetupStatus();
       const nextStage =
-        !status.hasEffectiveToken || message.includes("401")
+        !status.hasEffectiveToken || isRequestStatusError(error, 401)
           ? "auth"
           : "plexamp";
 

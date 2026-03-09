@@ -42,7 +42,7 @@
 - Improved browse and search result presentation.
 - Updated package and type configuration to match the revised search implementation.
 
-## 2026-02-28
+## [Initial Release] - 2026-02-28
 
 - Initial release of the Plexamp Raycast extension.
 - Added library browsing for artists, albums, tracks, and playlists.

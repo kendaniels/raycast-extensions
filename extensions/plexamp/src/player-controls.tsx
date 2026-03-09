@@ -46,7 +46,7 @@ function LibraryActions() {
         icon={Icon.MagnifyingGlass}
         shortcut={{ modifiers: ["cmd"], key: "s" }}
         onAction={() =>
-          launchCommand({
+          void launchCommand({
             name: "search-tracks",
             type: LaunchType.UserInitiated,
           })
@@ -57,7 +57,7 @@ function LibraryActions() {
         icon={Icon.List}
         shortcut={{ modifiers: ["cmd"], key: "b" }}
         onAction={() =>
-          launchCommand({
+          void launchCommand({
             name: "browse-media",
             type: LaunchType.UserInitiated,
           })
