@@ -86,6 +86,24 @@ function getRepeatAccessoryText(repeat?: string): string {
   }
 }
 
+async function resolveNavigableTrack(track: MusicTrack): Promise<MusicTrack> {
+  if (
+    track.parentRatingKey &&
+    track.grandparentRatingKey &&
+    track.librarySectionKey
+  ) {
+    return track;
+  }
+
+  const metadata = await getMetadataByRatingKey(track.ratingKey);
+
+  if (!metadata || metadata.type !== "track") {
+    throw new Error("Could not load full metadata for this track.");
+  }
+
+  return metadata;
+}
+
 function getPlaybackStateText(state?: string): string {
   if (!state) {
     return "Unknown";
@@ -211,20 +229,7 @@ export default function Command() {
   }
 
   const navigateToAlbum = useCallback(async (track: MusicTrack) => {
-    const resolvedTrack =
-      track.parentRatingKey &&
-      track.grandparentRatingKey &&
-      track.librarySectionKey
-        ? track
-        : await (async () => {
-            const metadata = await getMetadataByRatingKey(track.ratingKey);
-
-            if (!metadata || metadata.type !== "track") {
-              throw new Error("Could not load full metadata for this track.");
-            }
-
-            return metadata;
-          })();
+    const resolvedTrack = await resolveNavigableTrack(track);
 
     if (!resolvedTrack.parentRatingKey) {
       throw new Error("This track is missing album metadata.");
@@ -247,20 +252,7 @@ export default function Command() {
   }, []);
 
   const navigateToArtist = useCallback(async (track: MusicTrack) => {
-    const resolvedTrack =
-      track.parentRatingKey &&
-      track.grandparentRatingKey &&
-      track.librarySectionKey
-        ? track
-        : await (async () => {
-            const metadata = await getMetadataByRatingKey(track.ratingKey);
-
-            if (!metadata || metadata.type !== "track") {
-              throw new Error("Could not load full metadata for this track.");
-            }
-
-            return metadata;
-          })();
+    const resolvedTrack = await resolveNavigableTrack(track);
 
     if (!resolvedTrack.grandparentRatingKey) {
       throw new Error("This track is missing artist metadata.");

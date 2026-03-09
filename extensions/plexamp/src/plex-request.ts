@@ -1,6 +1,6 @@
 import { LocalStorage, environment } from "@raycast/api";
-import { randomUUID } from "node:crypto";
 
+import { getClientIdentifier } from "./plex-client";
 import {
   getConfig,
   getConfiguredPlexampUrl,
@@ -10,20 +10,8 @@ import { parseMediaContainer } from "./plex-parsing";
 import type { TimelineInfo } from "./types";
 import type { XmlNode } from "./plex-parsing";
 
-const CLIENT_IDENTIFIER_KEY = "plexamp-client-identifier";
 const COMMAND_ID_KEY = "plexamp-command-id";
 const REQUEST_TIMEOUT_MS = 15000;
-
-async function getClientIdentifier(): Promise<string> {
-  const existing = await LocalStorage.getItem<string>(CLIENT_IDENTIFIER_KEY);
-  if (existing) {
-    return existing;
-  }
-
-  const created = randomUUID();
-  await LocalStorage.setItem(CLIENT_IDENTIFIER_KEY, created);
-  return created;
-}
 
 async function nextCommandId(): Promise<string> {
   const existing = await LocalStorage.getItem<string>(COMMAND_ID_KEY);
@@ -77,6 +65,22 @@ interface PlexRequestOptions<T> {
   onConnectionError: (url: URL, message: string, baseUrl: string) => Error;
 }
 
+export class PlexRequestError extends Error {
+  statusCode: number;
+  statusText: string;
+  url: string;
+  body: string;
+
+  constructor(response: Response, body: string) {
+    super(formatRequestFailureMessage(response, body));
+    this.name = "PlexRequestError";
+    this.statusCode = response.status;
+    this.statusText = response.statusText;
+    this.url = response.url;
+    this.body = body;
+  }
+}
+
 function formatRequestFailureMessage(response: Response, body: string): string {
   return `Request failed (${response.status} ${response.statusText}): ${body || new URL(response.url).pathname}`;
 }
@@ -126,7 +130,7 @@ async function requestPlex<T>(
   try {
     if (!response.ok) {
       const body = await response.text();
-      throw new Error(formatRequestFailureMessage(response, body));
+      throw new PlexRequestError(response, body);
     }
 
     return await options.parse(response);
@@ -257,6 +261,10 @@ export function isRequestStatusError(
   error: unknown,
   statusCode: number,
 ): boolean {
+  if (error instanceof PlexRequestError) {
+    return error.statusCode === statusCode;
+  }
+
   const message = error instanceof Error ? error.message : String(error);
   return message.includes(`Request failed (${statusCode} `);
 }

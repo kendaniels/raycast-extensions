@@ -12,7 +12,7 @@ import {
   showToast,
   useNavigation,
 } from "@raycast/api";
-import { useCallback, useState, type ReactNode } from "react";
+import { useCallback, useState, type ReactElement } from "react";
 
 import { formatDuration, getTrackAccessoryValues } from "./format";
 import { getImageUrl, playItem, playNextItem, queueItem } from "./plex";
@@ -135,7 +135,7 @@ export function PlaybackActionItems(props: {
   onPlay: (item: PlayableItem) => Promise<void>;
   onPlayNext: (item: PlayableItem) => Promise<void>;
   onQueue: (item: PlayableItem) => Promise<void>;
-  browseTarget?: ReactNode;
+  browseTarget?: ReactElement;
   browseTitle?: string;
   browseIcon?: Icon;
   nowPlayingShortcut?: Keyboard.Shortcut;
@@ -148,7 +148,7 @@ export function PlaybackActionItems(props: {
         <Action
           title={props.browseTitle}
           icon={props.browseIcon ?? Icon.ArrowRight}
-          onAction={() => push(props.browseTarget as never)}
+          onAction={() => push(props.browseTarget)}
         />
       ) : null}
       <Action

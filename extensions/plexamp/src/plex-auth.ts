@@ -1,6 +1,6 @@
-import { LocalStorage, environment } from "@raycast/api";
-import { randomUUID } from "node:crypto";
+import { environment } from "@raycast/api";
 
+import { getClientIdentifier } from "./plex-client";
 import { PLEX_TV_BASE_URL, requirePlexToken } from "./plex-config";
 import {
   arrayify,
@@ -91,19 +91,6 @@ function buildPlexAuthUrl(code: string, clientIdentifier: string): string {
   return url.toString();
 }
 
-const CLIENT_IDENTIFIER_KEY = "plexamp-client-identifier";
-
-async function getClientIdentifierForAuth(): Promise<string> {
-  const existing = await LocalStorage.getItem<string>(CLIENT_IDENTIFIER_KEY);
-  if (existing) {
-    return existing;
-  }
-
-  const created = randomUUID();
-  await LocalStorage.setItem(CLIENT_IDENTIFIER_KEY, created);
-  return created;
-}
-
 function parsePlexServerConnection(node: XmlNode): PlexServerConnection {
   const address = asString(node.address);
 
@@ -183,7 +170,7 @@ function parsePlexServerResource(
 }
 
 export async function createPlexAuthPin(): Promise<PlexAuthPin> {
-  const clientIdentifier = await getClientIdentifierForAuth();
+  const clientIdentifier = await getClientIdentifier();
   const response = await requestJson<PlexPinResponse>(
     PLEX_TV_BASE_URL,
     "/api/v2/pins",
