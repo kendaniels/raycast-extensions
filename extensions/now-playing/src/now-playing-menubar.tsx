@@ -1,7 +1,7 @@
 import { Cache, MenuBarExtra, getPreferenceValues, open } from "@raycast/api";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import { access, mkdir, writeFile } from "node:fs/promises";
+import { access, mkdir, readdir, stat, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { useEffect, useRef, useState } from "react";
@@ -141,6 +141,27 @@ function artworkFileExtension(mimeType: string): string {
       return "heic";
     default:
       return "jpg";
+  }
+}
+
+async function pruneArtworkCache(maxAgeMs = 7 * 24 * 60 * 60 * 1000): Promise<void> {
+  try {
+    const entries = await readdir(ARTWORK_CACHE_DIR, { withFileTypes: true });
+    const now = Date.now();
+
+    await Promise.all(
+      entries
+        .filter((entry) => entry.isFile())
+        .map(async (entry) => {
+          const filePath = join(ARTWORK_CACHE_DIR, entry.name);
+          const { mtimeMs } = await stat(filePath);
+          if (now - mtimeMs > maxAgeMs) {
+            await unlink(filePath);
+          }
+        }),
+    );
+  } catch {
+    // Ignore cache cleanup failures; artwork lookup should still continue.
   }
 }
 
@@ -368,6 +389,7 @@ export default function Command() {
       return;
     }
 
+    void pruneArtworkCache();
     void refreshNowPlaying();
   }, []);
 

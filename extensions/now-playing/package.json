@@ -4,13 +4,7 @@
   "title": "Now Playing",
   "description": "Show the currently playing track and artist in the Raycast menu bar.",
   "icon": "command-icon-v2.png",
-  "author": "tkdkid1000",
-  "contributors": [
-    "johnstclair",
-    "ryanlauderbach",
-    "jacperegrinedavies",
-    "kendaniels"
-  ],
+  "author": "kendaniels",
   "categories": [
     "Media"
   ],
