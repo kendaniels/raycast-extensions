@@ -179,7 +179,7 @@ export default function Command() {
 
   function setStatePreservingLastNowPlaying(next: NowPlayingState) {
     setState((prev) => {
-      if (prev.status === "ok" && prev.track) {
+      if (next.status === "no-track" && prev.status === "ok" && prev.track) {
         return prev;
       }
       if (
