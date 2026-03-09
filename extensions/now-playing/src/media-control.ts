@@ -28,6 +28,7 @@ const CACHE_KEYS: Record<LookupKind, string> = {
   artist: "cached-eligible-media-artist",
   album: "cached-eligible-media-album",
 };
+const MAX_CACHED_ELIGIBLE_MEDIA_AGE_MS = 24 * 60 * 60 * 1000;
 
 export type MediaControlDebugInfo = {
   query: string | null;
@@ -159,7 +160,12 @@ async function readEligibleMedia(kind: LookupKind): Promise<Record<string, unkno
       return null;
     }
 
-    const payload = asPayloadRecord((parsed as CachedEligibleMedia).payload);
+    const cached = parsed as CachedEligibleMedia;
+    if (typeof cached.cachedAt !== "number" || Date.now() - cached.cachedAt > MAX_CACHED_ELIGIBLE_MEDIA_AGE_MS) {
+      return null;
+    }
+
+    const payload = asPayloadRecord(cached.payload);
     return payload;
   } catch {
     return null;
