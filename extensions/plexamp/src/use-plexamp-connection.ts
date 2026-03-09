@@ -1,44 +1,22 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 
 import { getPlexampClientInfo } from "./plex";
-
-interface PlexampConnectionState {
-  isLoading: boolean;
-  isReachable: boolean;
-  error?: string;
-}
+import { useAsyncValue } from "./use-async-value";
 
 export function usePlexampConnection() {
-  const [state, setState] = useState<PlexampConnectionState>({
-    isLoading: true,
-    isReachable: false,
-  });
-
-  const reload = useCallback(async () => {
-    setState((current) => ({
-      ...current,
-      isLoading: true,
-      error: undefined,
-    }));
-
-    try {
+  const state = useAsyncValue(
+    useCallback(async () => {
       await getPlexampClientInfo();
-      setState({ isLoading: false, isReachable: true });
-    } catch (error) {
-      setState({
-        isLoading: false,
-        isReachable: false,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }, []);
-
-  useEffect(() => {
-    void reload();
-  }, [reload]);
+      return { isReachable: true };
+    }, []),
+    "plexamp-connection",
+    { isReachable: false },
+  );
 
   return {
-    ...state,
-    reload,
+    isLoading: state.isLoading,
+    isReachable: state.value.isReachable,
+    error: state.error,
+    reload: state.reload,
   };
 }

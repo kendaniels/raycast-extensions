@@ -18,17 +18,6 @@ export function formatDuration(milliseconds?: number): string {
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
-export function formatTrackNumber(
-  parentIndex?: number,
-  index?: number,
-): string | undefined {
-  if (!index) {
-    return undefined;
-  }
-
-  return parentIndex ? `${parentIndex}.${index}` : String(index);
-}
-
 export function formatTrackTitlePrefix(
   parentIndex?: number,
   index?: number,

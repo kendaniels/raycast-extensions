@@ -1,6 +1,6 @@
 import {
   Action,
-  ActionPanel,
+  Color,
   environment,
   Icon,
   Keyboard,
@@ -10,11 +10,13 @@ import {
   launchCommand,
   openExtensionPreferences,
   showToast,
+  useNavigation,
 } from "@raycast/api";
-import { useCallback, useState } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 
+import { formatDuration, getTrackAccessoryValues } from "./format";
 import { getImageUrl, playItem, playNextItem, queueItem } from "./plex";
-import type { PlayableItem } from "./types";
+import type { MusicAlbum, MusicTrack, PlayableItem } from "./types";
 
 export function artworkSource(
   path?: string,
@@ -66,18 +68,108 @@ export function librarySetupDescription(problem?: string) {
   return `${problem}\n\n${details.join("\n")}`;
 }
 
-export function SetupEmptyView(props: { problem?: string }) {
+export function albumAccessories(
+  album: Pick<MusicAlbum, "year" | "leafCount" | "duration">,
+): List.Item.Accessory[] {
+  return [
+    ...(album.year
+      ? [
+          {
+            tag: {
+              value: String(album.year),
+              color: Color.SecondaryText,
+            },
+            tooltip: "Year",
+          },
+        ]
+      : []),
+    ...(album.leafCount
+      ? [
+          {
+            tag: {
+              value: `${album.leafCount} tracks`,
+              color: Color.Blue,
+            },
+            tooltip: "Track Count",
+          },
+        ]
+      : []),
+    ...(album.duration
+      ? [
+          {
+            tag: {
+              value: formatDuration(album.duration),
+              color: Color.Green,
+            },
+            tooltip: "Album Length",
+          },
+        ]
+      : []),
+  ];
+}
+
+export function trackAccessories(
+  track: Pick<MusicTrack, "audioFormat" | "bitrate" | "duration">,
+  options?: { durationText?: string },
+): List.Item.Accessory[] {
+  const accessories = getTrackAccessoryValues(track, options);
+
+  return [
+    ...(accessories.metadataBadge
+      ? [
+          {
+            tag: {
+              value: accessories.metadataBadge,
+              color: Color.SecondaryText,
+            },
+            tooltip: "Format and Bitrate",
+          },
+        ]
+      : []),
+    ...(accessories.durationText ? [{ text: accessories.durationText }] : []),
+  ];
+}
+
+export function PlaybackActionItems(props: {
+  item: PlayableItem;
+  onPlay: (item: PlayableItem) => Promise<void>;
+  onPlayNext: (item: PlayableItem) => Promise<void>;
+  onQueue: (item: PlayableItem) => Promise<void>;
+  browseTarget?: ReactNode;
+  browseTitle?: string;
+  browseIcon?: Icon;
+  nowPlayingShortcut?: Keyboard.Shortcut;
+}) {
+  const { push } = useNavigation();
+
   return (
-    <List.EmptyView
-      icon={Icon.Gear}
-      title="Finish Plex Setup"
-      description={librarySetupDescription(props.problem)}
-      actions={
-        <ActionPanel>
-          <PreferencesAction />
-        </ActionPanel>
-      }
-    />
+    <>
+      {props.browseTarget && props.browseTitle ? (
+        <Action
+          title={props.browseTitle}
+          icon={props.browseIcon ?? Icon.ArrowRight}
+          onAction={() => push(props.browseTarget as never)}
+        />
+      ) : null}
+      <Action
+        title="Play in Plexamp"
+        icon={Icon.Play}
+        onAction={() => props.onPlay(props.item)}
+      />
+      <Action
+        title="Add to Queue"
+        icon={Icon.Plus}
+        onAction={() => props.onQueue(props.item)}
+      />
+      <Action
+        title="Play Next"
+        icon={Icon.Forward}
+        onAction={() => props.onPlayNext(props.item)}
+        shortcut={{ modifiers: ["cmd", "shift"], key: "return" }}
+      />
+      <NowPlayingAction shortcut={props.nowPlayingShortcut} />
+      <PreferencesAction />
+    </>
   );
 }
 

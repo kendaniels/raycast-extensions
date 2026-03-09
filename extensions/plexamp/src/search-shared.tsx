@@ -1,28 +1,20 @@
-import {
-  Action,
-  ActionPanel,
-  Color,
-  Icon,
-  List,
-  useNavigation,
-} from "@raycast/api";
-import { useEffect, useState, type ReactNode } from "react";
+import { ActionPanel, Icon, List } from "@raycast/api";
+import { useEffect, useState } from "react";
 
 import { AlbumList, AlbumTrackList, PlaylistTrackList } from "./browse-media";
-import {
-  getTrackAccessoryValues,
-  formatDuration,
-  formatTrackDisplayTitle,
-  getTrackRatingDisplayMode,
-} from "./format";
-import { searchLibrary } from "./plex";
+import { formatTrackDisplayTitle, getTrackRatingDisplayMode } from "./format";
+import { getAudioPlaylists, searchLibrary } from "./plex";
 import {
   NowPlayingAction,
+  PlaybackActionItems,
   PreferencesAction,
+  albumAccessories,
   artworkSource,
   librarySetupDescription,
+  trackAccessories,
   usePlaybackActions,
 } from "./shared-ui";
+import { useAsyncValue } from "./use-async-value";
 import { PlexSetupView } from "./plex-setup-view";
 import { useLibrarySelection } from "./use-library-selection";
 import type {
@@ -45,47 +37,6 @@ function getSearchNavigationTitle(
   serverName?: string,
 ): string {
   return `Search: ${libraryName} on ${serverName ?? "Plex Media Server"}`;
-}
-
-function SearchActions(props: {
-  item: PlayableItem;
-  browseTarget?: ReactNode;
-  browseTitle?: string;
-  onPlay: (item: PlayableItem) => Promise<void>;
-  onPlayNext: (item: PlayableItem) => Promise<void>;
-  onQueue: (item: PlayableItem) => Promise<void>;
-}) {
-  const { push } = useNavigation();
-
-  return (
-    <ActionPanel>
-      {props.browseTarget && props.browseTitle ? (
-        <Action
-          title={props.browseTitle}
-          icon={Icon.ArrowRight}
-          onAction={() => push(props.browseTarget as never)}
-        />
-      ) : null}
-      <Action
-        title="Play in Plexamp"
-        icon={Icon.Play}
-        onAction={() => props.onPlay(props.item)}
-      />
-      <Action
-        title="Add to Queue"
-        icon={Icon.Plus}
-        onAction={() => props.onQueue(props.item)}
-      />
-      <Action
-        title="Play Next"
-        icon={Icon.Forward}
-        onAction={() => props.onPlayNext(props.item)}
-        shortcut={{ modifiers: ["cmd", "shift"], key: "return" }}
-      />
-      <NowPlayingAction shortcut={{ modifiers: ["cmd"], key: "n" }} />
-      <PreferencesAction />
-    </ActionPanel>
-  );
 }
 
 function useSearch(sectionKey: string | undefined, query: string): SearchState {
@@ -159,16 +110,22 @@ function SearchResultsList(props: {
               title={artist.title}
               subtitle={artist.summary}
               actions={
-                <SearchActions
-                  item={artist}
-                  browseTitle="Browse Artist"
-                  browseTarget={
-                    <AlbumList artist={artist} sectionKey={props.sectionKey} />
-                  }
-                  onPlay={props.onPlay}
-                  onPlayNext={props.onPlayNext}
-                  onQueue={props.onQueue}
-                />
+                <ActionPanel>
+                  <PlaybackActionItems
+                    item={artist}
+                    browseTitle="Browse Artist"
+                    browseTarget={
+                      <AlbumList
+                        artist={artist}
+                        sectionKey={props.sectionKey}
+                      />
+                    }
+                    onPlay={props.onPlay}
+                    onPlayNext={props.onPlayNext}
+                    onQueue={props.onQueue}
+                    nowPlayingShortcut={{ modifiers: ["cmd"], key: "n" }}
+                  />
+                </ActionPanel>
               }
             />
           ))}
@@ -183,50 +140,19 @@ function SearchResultsList(props: {
               icon={artworkSource(album.thumb)}
               title={album.title}
               subtitle={album.parentTitle}
-              accessories={[
-                ...(album.year
-                  ? [
-                      {
-                        tag: {
-                          value: String(album.year),
-                          color: Color.SecondaryText,
-                        },
-                        tooltip: "Year",
-                      },
-                    ]
-                  : []),
-                ...(album.leafCount
-                  ? [
-                      {
-                        tag: {
-                          value: `${album.leafCount} tracks`,
-                          color: Color.Blue,
-                        },
-                        tooltip: "Track Count",
-                      },
-                    ]
-                  : []),
-                ...(album.duration
-                  ? [
-                      {
-                        tag: {
-                          value: formatDuration(album.duration),
-                          color: Color.Green,
-                        },
-                        tooltip: "Album Length",
-                      },
-                    ]
-                  : []),
-              ]}
+              accessories={albumAccessories(album)}
               actions={
-                <SearchActions
-                  item={album}
-                  browseTitle="Browse Tracks"
-                  browseTarget={<AlbumTrackList album={album} />}
-                  onPlay={props.onPlay}
-                  onPlayNext={props.onPlayNext}
-                  onQueue={props.onQueue}
-                />
+                <ActionPanel>
+                  <PlaybackActionItems
+                    item={album}
+                    browseTitle="Browse Tracks"
+                    browseTarget={<AlbumTrackList album={album} />}
+                    onPlay={props.onPlay}
+                    onPlayNext={props.onPlayNext}
+                    onQueue={props.onQueue}
+                    nowPlayingShortcut={{ modifiers: ["cmd"], key: "n" }}
+                  />
+                </ActionPanel>
               }
             />
           ))}
@@ -237,8 +163,6 @@ function SearchResultsList(props: {
         <List.Section title="Songs">
           {props.tracks.map((track) =>
             (() => {
-              const accessories = getTrackAccessoryValues(track);
-
               return (
                 <List.Item
                   key={`track-${track.ratingKey}`}
@@ -252,29 +176,17 @@ function SearchResultsList(props: {
                   subtitle={[track.grandparentTitle, track.parentTitle]
                     .filter(Boolean)
                     .join(" - ")}
-                  accessories={[
-                    ...(accessories.metadataBadge
-                      ? [
-                          {
-                            tag: {
-                              value: accessories.metadataBadge,
-                              color: Color.SecondaryText,
-                            },
-                            tooltip: "Format and Bitrate",
-                          },
-                        ]
-                      : []),
-                    ...(accessories.durationText
-                      ? [{ text: accessories.durationText }]
-                      : []),
-                  ]}
+                  accessories={trackAccessories(track)}
                   actions={
-                    <SearchActions
-                      item={track}
-                      onPlay={props.onPlay}
-                      onPlayNext={props.onPlayNext}
-                      onQueue={props.onQueue}
-                    />
+                    <ActionPanel>
+                      <PlaybackActionItems
+                        item={track}
+                        onPlay={props.onPlay}
+                        onPlayNext={props.onPlayNext}
+                        onQueue={props.onQueue}
+                        nowPlayingShortcut={{ modifiers: ["cmd"], key: "n" }}
+                      />
+                    </ActionPanel>
                   }
                 />
               );
@@ -296,14 +208,17 @@ function SearchResultsList(props: {
                   : []
               }
               actions={
-                <SearchActions
-                  item={playlist}
-                  browseTitle="Browse Playlist"
-                  browseTarget={<PlaylistTrackList playlist={playlist} />}
-                  onPlay={props.onPlay}
-                  onPlayNext={props.onPlayNext}
-                  onQueue={props.onQueue}
-                />
+                <ActionPanel>
+                  <PlaybackActionItems
+                    item={playlist}
+                    browseTitle="Browse Playlist"
+                    browseTarget={<PlaylistTrackList playlist={playlist} />}
+                    onPlay={props.onPlay}
+                    onPlayNext={props.onPlayNext}
+                    onQueue={props.onQueue}
+                    nowPlayingShortcut={{ modifiers: ["cmd"], key: "n" }}
+                  />
+                </ActionPanel>
               }
             />
           ))}
@@ -317,12 +232,28 @@ export function SearchCommand() {
   const librarySelection = useLibrarySelection();
   const playback = usePlaybackActions();
   const [query, setQuery] = useState("");
+  const trimmedQuery = query.trim();
+  const playlists = useAsyncValue(
+    () =>
+      librarySelection.selectedLibrary && trimmedQuery.length > 0
+        ? getAudioPlaylists(librarySelection.selectedLibrary.key)
+        : Promise.resolve([]),
+    `search-playlists-${
+      librarySelection.selectedLibrary?.key ?? "no-library"
+    }-${trimmedQuery.length > 0 ? "active" : "idle"}`,
+    [] as AudioPlaylist[],
+  );
   const state = useSearch(librarySelection.selectedLibrary?.key, query);
+  const matchingPlaylists = playlists.value.filter((playlist) =>
+    playlist.title
+      .toLocaleLowerCase()
+      .includes(trimmedQuery.toLocaleLowerCase()),
+  );
   const hasResults =
     state.results.tracks.length > 0 ||
     state.results.albums.length > 0 ||
     state.results.artists.length > 0 ||
-    state.results.playlists.length > 0;
+    matchingPlaylists.length > 0;
 
   if (librarySelection.isLoading) {
     return (
@@ -353,7 +284,10 @@ export function SearchCommand() {
   return (
     <List
       isLoading={
-        librarySelection.isLoading || playback.isPerforming || state.isLoading
+        librarySelection.isLoading ||
+        playlists.isLoading ||
+        playback.isPerforming ||
+        state.isLoading
       }
       searchBarPlaceholder="Search songs, albums, artists, and playlists"
       onSearchTextChange={setQuery}
@@ -415,7 +349,7 @@ export function SearchCommand() {
         tracks={state.results.tracks}
         albums={state.results.albums}
         artists={state.results.artists}
-        playlists={state.results.playlists}
+        playlists={matchingPlaylists}
         onPlay={playback.play}
         onPlayNext={playback.playNext}
         onQueue={playback.queue}

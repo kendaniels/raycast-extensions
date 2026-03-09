@@ -1,7 +1,6 @@
 import {
   Action,
   ActionPanel,
-  Color,
   Icon,
   LaunchType,
   List,
@@ -9,20 +8,16 @@ import {
   launchCommand,
   showToast,
 } from "@raycast/api";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import {
-  getTrackAccessoryValues,
   formatDuration,
   formatTrackDisplayTitle,
   getTrackRatingDisplayMode,
 } from "./format";
 import {
   clearPlayQueue,
-  getMetadataByKeyForTimeline,
   getMetadataByRatingKey,
-  getPlayQueueForTimeline,
-  getTimeline,
   movePlayQueueItem,
   playPause,
   removePlayQueueItem,
@@ -33,28 +28,15 @@ import {
   skipToQueueItem,
   stop,
 } from "./plex";
-import { PreferencesAction, artworkSource } from "./shared-ui";
-import type {
-  MetadataItem,
-  MusicTrack,
-  PlayQueueInfo,
-  TimelineInfo,
-} from "./types";
+import {
+  PreferencesAction,
+  artworkSource,
+  trackAccessories,
+} from "./shared-ui";
+import type { PlayQueueInfo, MusicTrack } from "./types";
+import { useNowPlayingState } from "./use-now-playing-state";
 import { usePlexampConnection } from "./use-plexamp-connection";
 import { PlexSetupView } from "./plex-setup-view";
-
-interface ControlsState {
-  timeline: TimelineInfo;
-  queue?: PlayQueueInfo;
-  current?: MetadataItem;
-}
-
-function controlsStateEquals(
-  left: ControlsState,
-  right: ControlsState,
-): boolean {
-  return JSON.stringify(left) === JSON.stringify(right);
-}
 
 function LibraryActions() {
   return (
@@ -114,132 +96,10 @@ function getPlaybackStateText(state?: string): string {
 
 export default function Command() {
   const plexamp = usePlexampConnection();
-  const [state, setState] = useState<ControlsState>({
-    timeline: { state: "loading" },
-  });
-  const [isLoading, setIsLoading] = useState(true);
   const [isPerforming, setIsPerforming] = useState(false);
-  const [error, setError] = useState<string>();
-  const stateRef = useRef(state);
-
-  useEffect(() => {
-    stateRef.current = state;
-  }, [state]);
-
-  const reload = useCallback(
-    async (options?: { includeQueue?: boolean; background?: boolean }) => {
-      const includeQueue = options?.includeQueue ?? true;
-      const background = options?.background ?? false;
-
-      if (!background) {
-        setIsLoading(true);
-      }
-      if (includeQueue && !background) {
-        setError(undefined);
-      }
-
-      try {
-        const timeline = await getTimeline();
-        let queue: PlayQueueInfo | undefined = includeQueue
-          ? undefined
-          : stateRef.current.queue;
-        let current: MetadataItem | undefined = timeline.current;
-        const warnings: string[] = [];
-
-        if (includeQueue && timeline.playQueueID) {
-          try {
-            queue = await getPlayQueueForTimeline(timeline);
-          } catch (queueError) {
-            warnings.push(
-              queueError instanceof Error
-                ? queueError.message
-                : String(queueError),
-            );
-          }
-        }
-
-        const currentFromQueue = queue?.items.find(
-          (item) => item.playQueueItemID === timeline.playQueueItemID,
-        );
-        current = currentFromQueue;
-
-        if (!current && timeline.key) {
-          try {
-            current = await getMetadataByKeyForTimeline(timeline, timeline.key);
-          } catch (metadataError) {
-            warnings.push(
-              metadataError instanceof Error
-                ? metadataError.message
-                : String(metadataError),
-            );
-          }
-        }
-
-        if (!current && timeline.ratingKey) {
-          try {
-            current = await getMetadataByRatingKey(timeline.ratingKey);
-          } catch (metadataError) {
-            warnings.push(
-              metadataError instanceof Error
-                ? metadataError.message
-                : String(metadataError),
-            );
-          }
-        }
-
-        const nextState = { timeline, queue, current };
-        setState((currentState) =>
-          controlsStateEquals(currentState, nextState)
-            ? currentState
-            : nextState,
-        );
-        if (includeQueue) {
-          setError((currentError) =>
-            currentError === warnings[0] ? currentError : warnings[0],
-          );
-        }
-      } catch (loadError) {
-        const nextError =
-          loadError instanceof Error ? loadError.message : String(loadError);
-        setError((currentError) =>
-          currentError === nextError ? currentError : nextError,
-        );
-        setState((currentState) =>
-          currentState.timeline.state === "error"
-            ? currentState
-            : {
-                ...currentState,
-                timeline: { state: "error" },
-              },
-        );
-      } finally {
-        if (!background) {
-          setIsLoading(false);
-        }
-      }
-    },
-    [],
+  const { state, isLoading, error, reload } = useNowPlayingState(
+    plexamp.isReachable,
   );
-
-  useEffect(() => {
-    if (!plexamp.isReachable) {
-      return;
-    }
-
-    void reload({ includeQueue: true });
-  }, [plexamp.isReachable, reload]);
-
-  useEffect(() => {
-    if (!plexamp.isReachable) {
-      return;
-    }
-
-    const interval = setInterval(() => {
-      void reload({ includeQueue: true, background: true });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [plexamp.isReachable, reload]);
 
   const runControl = useCallback(
     async (action: () => Promise<void>, successTitle: string) => {
@@ -342,9 +202,9 @@ export default function Command() {
       <PlexSetupView
         navigationTitle="Now Playing"
         problem={plexamp.error}
-        onConfigured={() => {
-          void plexamp.reload();
-          void reload();
+        onConfigured={async () => {
+          await plexamp.reload();
+          await reload();
         }}
       />
     );
@@ -489,26 +349,7 @@ export default function Command() {
           subtitle={[track.grandparentTitle, track.parentTitle]
             .filter(Boolean)
             .join(" - ")}
-          accessories={(() => {
-            const accessories = getTrackAccessoryValues(track);
-
-            return [
-              ...(accessories.metadataBadge
-                ? [
-                    {
-                      tag: {
-                        value: accessories.metadataBadge,
-                        color: Color.SecondaryText,
-                      },
-                      tooltip: "Format and Bitrate",
-                    },
-                  ]
-                : []),
-              ...(accessories.durationText
-                ? [{ text: accessories.durationText }]
-                : []),
-            ];
-          })()}
+          accessories={trackAccessories(track)}
           actions={
             <ActionPanel>
               <Action
@@ -629,32 +470,11 @@ export default function Command() {
           })}
           title={currentTitle}
           subtitle={nowPlayingDetails.subtitle}
-          accessories={(() => {
-            if (!currentTrack) {
-              return progressAccessory;
-            }
-
-            const accessories = getTrackAccessoryValues(currentTrack, {
-              durationText: progressText,
-            });
-
-            return [
-              ...(accessories.metadataBadge
-                ? [
-                    {
-                      tag: {
-                        value: accessories.metadataBadge,
-                        color: Color.SecondaryText,
-                      },
-                      tooltip: "Format and Bitrate",
-                    },
-                  ]
-                : []),
-              ...(accessories.durationText
-                ? [{ text: accessories.durationText }]
-                : []),
-            ];
-          })()}
+          accessories={
+            currentTrack
+              ? trackAccessories(currentTrack, { durationText: progressText })
+              : progressAccessory
+          }
           actions={
             <ActionPanel>
               <Action

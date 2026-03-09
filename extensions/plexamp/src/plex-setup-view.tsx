@@ -149,7 +149,7 @@ export function PlexSetupView(props: PlexSetupViewProps) {
         if (!props.forceLibrarySelection && selectableLibraries.length === 1) {
           await saveSelectedServer(selectableLibraries[0].server);
           await saveSelectedLibrary(selectableLibraries[0].library);
-          props.onConfigured?.();
+          await props.onConfigured?.();
           setState({
             isLoading: true,
             stage: "loading",
@@ -184,7 +184,7 @@ export function PlexSetupView(props: PlexSetupViewProps) {
       if (!selectedLibrary) {
         if (libraries.length === 1) {
           await saveSelectedLibrary(libraries[0]);
-          props.onConfigured?.();
+          await props.onConfigured?.();
           setState({
             isLoading: true,
             stage: "loading",
@@ -217,7 +217,7 @@ export function PlexSetupView(props: PlexSetupViewProps) {
         return;
       }
 
-      props.onConfigured?.();
+      await props.onConfigured?.();
       setState({
         isLoading: true,
         stage: "loading",

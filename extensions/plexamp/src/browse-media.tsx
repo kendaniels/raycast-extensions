@@ -1,21 +1,7 @@
-import {
-  Action,
-  ActionPanel,
-  Color,
-  Icon,
-  Keyboard,
-  LaunchProps,
-  List,
-} from "@raycast/api";
-import { useEffect, useState } from "react";
+import { Action, ActionPanel, Icon, LaunchProps, List } from "@raycast/api";
 import { useNavigation } from "@raycast/api";
 
-import {
-  getTrackAccessoryValues,
-  formatDuration,
-  formatTrackDisplayTitle,
-  getTrackRatingDisplayMode,
-} from "./format";
+import { formatTrackDisplayTitle, getTrackRatingDisplayMode } from "./format";
 import {
   getAlbumsForArtist,
   getArtists,
@@ -26,26 +12,23 @@ import {
 } from "./plex";
 import {
   NowPlayingAction,
+  PlaybackActionItems,
   PreferencesAction,
+  albumAccessories,
   artworkSource,
+  trackAccessories,
   usePlaybackActions,
 } from "./shared-ui";
 import { PlexSetupView } from "./plex-setup-view";
+import { useAsyncValue } from "./use-async-value";
 import { useLibrarySelection } from "./use-library-selection";
 import type {
   AudioPlaylist,
-  LibrarySection,
   MusicAlbum,
   MusicArtist,
   MusicTrack,
   PlayableItem,
 } from "./types";
-
-interface LoadState<T> {
-  isLoading: boolean;
-  items: T[];
-  error?: string;
-}
 
 interface BrowseLaunchContext {
   target?: "album" | "artist";
@@ -58,44 +41,6 @@ function getBrowseNavigationTitle(
   serverName?: string,
 ): string {
   return `Browse: ${libraryName} on ${serverName ?? "Plex Media Server"}`;
-}
-
-function albumAccessories(album: MusicAlbum): List.Item.Accessory[] {
-  return [
-    ...(album.year
-      ? [
-          {
-            tag: {
-              value: String(album.year),
-              color: Color.SecondaryText,
-            },
-            tooltip: "Year",
-          },
-        ]
-      : []),
-    ...(album.leafCount
-      ? [
-          {
-            tag: {
-              value: `${album.leafCount} tracks`,
-              color: Color.Blue,
-            },
-            tooltip: "Track Count",
-          },
-        ]
-      : []),
-    ...(album.duration
-      ? [
-          {
-            tag: {
-              value: formatDuration(album.duration),
-              color: Color.Green,
-            },
-            tooltip: "Album Length",
-          },
-        ]
-      : []),
-  ];
 }
 
 function normalizeReleaseType(album: MusicAlbum): string {
@@ -210,7 +155,7 @@ function AlbumRow(props: {
             icon={Icon.ArrowRight}
             onAction={() => push(<AlbumTrackList album={props.album} />)}
           />
-          <PlaybackActions
+          <PlaybackActionItems
             item={props.album}
             onPlay={props.onPlay}
             onPlayNext={props.onPlayNext}
@@ -223,90 +168,23 @@ function AlbumRow(props: {
   );
 }
 
-function useLoadItems<T>(
-  loader: () => Promise<T[]>,
-  dependencyKey: string,
-): LoadState<T> {
-  const [state, setState] = useState<LoadState<T>>({
-    isLoading: true,
-    items: [],
-  });
-
-  useEffect(() => {
-    let cancelled = false;
-
-    setState({ isLoading: true, items: [] });
-
-    loader()
-      .then((items) => {
-        if (!cancelled) {
-          setState({ isLoading: false, items });
-        }
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          setState({
-            isLoading: false,
-            items: [],
-            error: error instanceof Error ? error.message : String(error),
-          });
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [dependencyKey]);
-
-  return state;
-}
-
-function PlaybackActions(props: {
-  item: PlayableItem;
-  onPlay: (item: PlayableItem) => Promise<void>;
-  onPlayNext: (item: PlayableItem) => Promise<void>;
-  onQueue: (item: PlayableItem) => Promise<void>;
-  nowPlayingShortcut?: Keyboard.Shortcut;
-}) {
-  return (
-    <>
-      <Action
-        title="Play in Plexamp"
-        icon={Icon.Play}
-        onAction={() => props.onPlay(props.item)}
-      />
-      <Action
-        title="Add to Queue"
-        icon={Icon.Plus}
-        onAction={() => props.onQueue(props.item)}
-      />
-      <Action
-        title="Play Next"
-        icon={Icon.Forward}
-        onAction={() => props.onPlayNext(props.item)}
-        shortcut={{ modifiers: ["cmd", "shift"], key: "return" }}
-      />
-      <NowPlayingAction shortcut={props.nowPlayingShortcut} />
-      <PreferencesAction />
-    </>
-  );
-}
-
 function RootContent() {
   const libraries = useLibrarySelection();
-  const artists = useLoadItems(
+  const artists = useAsyncValue(
     () =>
       libraries.selectedLibrary
         ? getArtists(libraries.selectedLibrary.key)
         : Promise.resolve([]),
     libraries.selectedLibrary?.key ?? "no-library",
+    [] as MusicArtist[],
   );
-  const playlists = useLoadItems(
+  const playlists = useAsyncValue(
     () =>
       libraries.selectedLibrary
         ? getAudioPlaylists(libraries.selectedLibrary.key)
         : Promise.resolve([]),
     `playlists-${libraries.selectedLibrary?.key ?? "no-library"}`,
+    [] as AudioPlaylist[],
   );
   const playback = usePlaybackActions();
   const { push } = useNavigation();
@@ -351,7 +229,7 @@ function RootContent() {
       }
     >
       <List.Section title="Playlists">
-        {playlists.items.map((playlist) => (
+        {playlists.value.map((playlist) => (
           <List.Item
             key={playlist.ratingKey}
             icon={artworkSource(playlist.thumb, Icon.List)}
@@ -370,7 +248,7 @@ function RootContent() {
                     push(<PlaylistTrackList playlist={playlist} />)
                   }
                 />
-                <PlaybackActions
+                <PlaybackActionItems
                   item={playlist}
                   onPlay={playback.play}
                   onPlayNext={playback.playNext}
@@ -384,7 +262,7 @@ function RootContent() {
       </List.Section>
 
       <List.Section title="Artists">
-        {artists.items.map((artist) => (
+        {artists.value.map((artist) => (
           <ArtistRow
             key={artist.ratingKey}
             artist={artist}
@@ -428,7 +306,7 @@ function ArtistRow(props: {
               )
             }
           />
-          <PlaybackActions
+          <PlaybackActionItems
             item={props.artist}
             onPlay={props.onPlay}
             onPlayNext={props.onPlayNext}
@@ -441,59 +319,14 @@ function ArtistRow(props: {
   );
 }
 
-export function ArtistList(props: { section: LibrarySection }) {
-  const artists = useLoadItems(
-    () => getArtists(props.section.key),
-    props.section.key,
-  );
-  const playback = usePlaybackActions();
-
-  return (
-    <List
-      isLoading={artists.isLoading || playback.isPerforming}
-      navigationTitle={props.section.title}
-      searchBarPlaceholder="Filter artists"
-      actions={
-        <ActionPanel>
-          <NowPlayingAction shortcut={{ modifiers: ["cmd"], key: "n" }} />
-          <PreferencesAction />
-        </ActionPanel>
-      }
-    >
-      {artists.error ? (
-        <List.EmptyView
-          icon={Icon.ExclamationMark}
-          title="Unable to load artists"
-          description={artists.error}
-          actions={
-            <ActionPanel>
-              <NowPlayingAction shortcut={{ modifiers: ["cmd"], key: "n" }} />
-              <PreferencesAction />
-            </ActionPanel>
-          }
-        />
-      ) : null}
-      {artists.items.map((artist) => (
-        <ArtistRow
-          key={artist.ratingKey}
-          artist={artist}
-          sectionKey={props.section.key}
-          onPlay={playback.play}
-          onPlayNext={playback.playNext}
-          onQueue={playback.queue}
-        />
-      ))}
-    </List>
-  );
-}
-
 export function AlbumList(props: { artist: MusicArtist; sectionKey: string }) {
-  const albums = useLoadItems(
+  const albums = useAsyncValue(
     () => getAlbumsForArtist(props.sectionKey, props.artist),
     `${props.sectionKey}:${props.artist.ratingKey}`,
+    [] as MusicAlbum[],
   );
   const playback = usePlaybackActions();
-  const sections = groupAlbumsByReleaseType(albums.items);
+  const sections = groupAlbumsByReleaseType(albums.value);
 
   return (
     <List
@@ -538,9 +371,10 @@ export function AlbumList(props: { artist: MusicArtist; sectionKey: string }) {
 }
 
 export function AlbumTrackList(props: { album: MusicAlbum }) {
-  const tracks = useLoadItems(
+  const tracks = useAsyncValue(
     () => getTracksForAlbum(props.album),
     props.album.ratingKey,
+    [] as MusicTrack[],
   );
   const playback = usePlaybackActions();
 
@@ -548,7 +382,7 @@ export function AlbumTrackList(props: { album: MusicAlbum }) {
     <TrackList
       title={props.album.title}
       coverPath={props.album.thumb}
-      tracks={tracks.items}
+      tracks={tracks.value}
       isLoading={tracks.isLoading || playback.isPerforming}
       error={tracks.error}
       onPlay={playback.play}
@@ -559,9 +393,10 @@ export function AlbumTrackList(props: { album: MusicAlbum }) {
 }
 
 export function PlaylistTrackList(props: { playlist: AudioPlaylist }) {
-  const tracks = useLoadItems(
+  const tracks = useAsyncValue(
     () => getTracksForPlaylist(props.playlist),
     props.playlist.ratingKey,
+    [] as MusicTrack[],
   );
   const playback = usePlaybackActions();
 
@@ -569,7 +404,7 @@ export function PlaylistTrackList(props: { playlist: AudioPlaylist }) {
     <TrackList
       title={props.playlist.title}
       coverPath={props.playlist.thumb}
-      tracks={tracks.items}
+      tracks={tracks.value}
       isLoading={tracks.isLoading || playback.isPerforming}
       error={tracks.error}
       onPlay={playback.play}
@@ -618,8 +453,6 @@ function TrackList(props: {
       ) : null}
       {props.tracks.map((track) =>
         (() => {
-          const accessories = getTrackAccessoryValues(track);
-
           return (
             <List.Item
               key={track.ratingKey}
@@ -633,25 +466,10 @@ function TrackList(props: {
               subtitle={[track.grandparentTitle, track.parentTitle]
                 .filter(Boolean)
                 .join(" - ")}
-              accessories={[
-                ...(accessories.metadataBadge
-                  ? [
-                      {
-                        tag: {
-                          value: accessories.metadataBadge,
-                          color: Color.SecondaryText,
-                        },
-                        tooltip: "Format and Bitrate",
-                      },
-                    ]
-                  : []),
-                ...(accessories.durationText
-                  ? [{ text: accessories.durationText }]
-                  : []),
-              ]}
+              accessories={trackAccessories(track)}
               actions={
                 <ActionPanel>
-                  <PlaybackActions
+                  <PlaybackActionItems
                     item={track}
                     onPlay={props.onPlay}
                     onPlayNext={props.onPlayNext}
@@ -669,52 +487,27 @@ function TrackList(props: {
 }
 
 function LaunchAlbumView(props: { ratingKey: string }) {
-  const [album, setAlbum] = useState<MusicAlbum>();
-  const [error, setError] = useState<string>();
-  const [isLoading, setIsLoading] = useState(true);
+  const album = useAsyncValue(
+    async () => {
+      const metadata = await getMetadataByRatingKey(props.ratingKey);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    void (async () => {
-      try {
-        const metadata = await getMetadataByRatingKey(props.ratingKey);
-
-        if (cancelled) {
-          return;
-        }
-
-        if (!metadata || metadata.type !== "album") {
-          throw new Error("Could not load the selected album.");
-        }
-
-        setAlbum(metadata);
-        setError(undefined);
-      } catch (loadError) {
-        if (!cancelled) {
-          setError(
-            loadError instanceof Error ? loadError.message : String(loadError),
-          );
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
+      if (!metadata || metadata.type !== "album") {
+        throw new Error("Could not load the selected album.");
       }
-    })();
 
-    return () => {
-      cancelled = true;
-    };
-  }, [props.ratingKey]);
+      return metadata;
+    },
+    props.ratingKey,
+    undefined as MusicAlbum | undefined,
+  );
 
-  if (album) {
-    return <AlbumTrackList album={album} />;
+  if (album.value) {
+    return <AlbumTrackList album={album.value} />;
   }
 
   return (
     <List
-      isLoading={isLoading}
+      isLoading={album.isLoading}
       navigationTitle="Browse Album"
       actions={
         <ActionPanel>
@@ -724,9 +517,9 @@ function LaunchAlbumView(props: { ratingKey: string }) {
       }
     >
       <List.EmptyView
-        icon={error ? Icon.ExclamationMark : Icon.Music}
-        title={error ? "Unable to load album" : "Loading album"}
-        description={error}
+        icon={album.error ? Icon.ExclamationMark : Icon.Music}
+        title={album.error ? "Unable to load album" : "Loading album"}
+        description={album.error}
         actions={
           <ActionPanel>
             <NowPlayingAction shortcut={{ modifiers: ["cmd"], key: "n" }} />
@@ -739,52 +532,27 @@ function LaunchAlbumView(props: { ratingKey: string }) {
 }
 
 function LaunchArtistView(props: { ratingKey: string; sectionKey: string }) {
-  const [artist, setArtist] = useState<MusicArtist>();
-  const [error, setError] = useState<string>();
-  const [isLoading, setIsLoading] = useState(true);
+  const artist = useAsyncValue(
+    async () => {
+      const metadata = await getMetadataByRatingKey(props.ratingKey);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    void (async () => {
-      try {
-        const metadata = await getMetadataByRatingKey(props.ratingKey);
-
-        if (cancelled) {
-          return;
-        }
-
-        if (!metadata || metadata.type !== "artist") {
-          throw new Error("Could not load the selected artist.");
-        }
-
-        setArtist(metadata);
-        setError(undefined);
-      } catch (loadError) {
-        if (!cancelled) {
-          setError(
-            loadError instanceof Error ? loadError.message : String(loadError),
-          );
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
+      if (!metadata || metadata.type !== "artist") {
+        throw new Error("Could not load the selected artist.");
       }
-    })();
 
-    return () => {
-      cancelled = true;
-    };
-  }, [props.ratingKey]);
+      return metadata;
+    },
+    props.ratingKey,
+    undefined as MusicArtist | undefined,
+  );
 
-  if (artist) {
-    return <AlbumList artist={artist} sectionKey={props.sectionKey} />;
+  if (artist.value) {
+    return <AlbumList artist={artist.value} sectionKey={props.sectionKey} />;
   }
 
   return (
     <List
-      isLoading={isLoading}
+      isLoading={artist.isLoading}
       navigationTitle="Browse Artist"
       actions={
         <ActionPanel>
@@ -794,9 +562,9 @@ function LaunchArtistView(props: { ratingKey: string; sectionKey: string }) {
       }
     >
       <List.EmptyView
-        icon={error ? Icon.ExclamationMark : Icon.Person}
-        title={error ? "Unable to load artist" : "Loading artist"}
-        description={error}
+        icon={artist.error ? Icon.ExclamationMark : Icon.Person}
+        title={artist.error ? "Unable to load artist" : "Loading artist"}
+        description={artist.error}
         actions={
           <ActionPanel>
             <NowPlayingAction shortcut={{ modifiers: ["cmd"], key: "n" }} />
