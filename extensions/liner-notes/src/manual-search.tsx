@@ -65,25 +65,26 @@ export default function Command(props: LaunchProps<{ arguments: Arguments.Manual
                       />
                     }
                     onPush={() => {
-                      const existingIdx = history!.findIndex(
+                      const nextHistory = history ?? [];
+                      const existingIdx = nextHistory.findIndex(
                         (i) => i.title.toLowerCase() === item.result.full_title.toLowerCase(),
                       );
+                      const viewedAt = Date.now();
                       if (existingIdx !== -1) {
-                        history![existingIdx] = {
-                          ...history![existingIdx],
-                          viewedAt: Date.now(),
-                          songId: item.result.id,
-                        };
-                        setHistory(history!);
+                        setHistory(
+                          nextHistory.map((entry, idx) =>
+                            idx === existingIdx ? { ...entry, viewedAt, songId: item.result.id } : entry,
+                          ),
+                        );
                       } else {
                         setHistory(
-                          history?.concat({
+                          nextHistory.concat({
                             title: item.result.full_title,
                             thumbnail: item.result.song_art_image_thumbnail_url,
                             url: item.result.url,
-                            viewedAt: Date.now(),
+                            viewedAt,
                             songId: item.result.id,
-                          }) || [],
+                          }),
                         );
                       }
                     }}
