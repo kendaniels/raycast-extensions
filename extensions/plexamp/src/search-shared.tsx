@@ -8,7 +8,7 @@ import {
 } from "@raycast/api";
 import { useEffect, useState, type ReactNode } from "react";
 
-import { AlbumList, AlbumTrackList } from "./browse-media";
+import { AlbumList, AlbumTrackList, PlaylistTrackList } from "./browse-media";
 import {
   getTrackAccessoryValues,
   formatDuration,
@@ -26,6 +26,7 @@ import {
 import { PlexSetupView } from "./plex-setup-view";
 import { useLibrarySelection } from "./use-library-selection";
 import type {
+  AudioPlaylist,
   MusicAlbum,
   MusicArtist,
   MusicTrack,
@@ -90,7 +91,7 @@ function SearchActions(props: {
 function useSearch(sectionKey: string | undefined, query: string): SearchState {
   const [state, setState] = useState<SearchState>({
     isLoading: false,
-    results: { tracks: [], albums: [], artists: [] },
+    results: { tracks: [], albums: [], artists: [], playlists: [] },
   });
 
   useEffect(() => {
@@ -99,7 +100,7 @@ function useSearch(sectionKey: string | undefined, query: string): SearchState {
     if (!sectionKey || query.trim().length === 0) {
       setState({
         isLoading: false,
-        results: { tracks: [], albums: [], artists: [] },
+        results: { tracks: [], albums: [], artists: [], playlists: [] },
       });
       return () => {
         cancelled = true;
@@ -119,7 +120,7 @@ function useSearch(sectionKey: string | undefined, query: string): SearchState {
           if (!cancelled) {
             setState({
               isLoading: false,
-              results: { tracks: [], albums: [], artists: [] },
+              results: { tracks: [], albums: [], artists: [], playlists: [] },
               error: error instanceof Error ? error.message : String(error),
             });
           }
@@ -140,6 +141,7 @@ function SearchResultsList(props: {
   tracks: MusicTrack[];
   albums: MusicAlbum[];
   artists: MusicArtist[];
+  playlists: AudioPlaylist[];
   onPlay: (item: PlayableItem) => Promise<void>;
   onPlayNext: (item: PlayableItem) => Promise<void>;
   onQueue: (item: PlayableItem) => Promise<void>;
@@ -280,6 +282,33 @@ function SearchResultsList(props: {
           )}
         </List.Section>
       ) : null}
+
+      {props.playlists.length > 0 ? (
+        <List.Section title="Playlists">
+          {props.playlists.map((playlist) => (
+            <List.Item
+              key={`playlist-${playlist.ratingKey}`}
+              icon={artworkSource(playlist.thumb, Icon.List)}
+              title={playlist.title}
+              accessories={
+                playlist.leafCount
+                  ? [{ text: `${playlist.leafCount} tracks` }]
+                  : []
+              }
+              actions={
+                <SearchActions
+                  item={playlist}
+                  browseTitle="Browse Playlist"
+                  browseTarget={<PlaylistTrackList playlist={playlist} />}
+                  onPlay={props.onPlay}
+                  onPlayNext={props.onPlayNext}
+                  onQueue={props.onQueue}
+                />
+              }
+            />
+          ))}
+        </List.Section>
+      ) : null}
     </>
   );
 }
@@ -292,14 +321,15 @@ export function SearchCommand() {
   const hasResults =
     state.results.tracks.length > 0 ||
     state.results.albums.length > 0 ||
-    state.results.artists.length > 0;
+    state.results.artists.length > 0 ||
+    state.results.playlists.length > 0;
 
   if (librarySelection.isLoading) {
     return (
       <List
         isLoading
         navigationTitle="Search Library"
-        searchBarPlaceholder="Search songs, albums, and artists"
+        searchBarPlaceholder="Search songs, albums, artists, and playlists"
         onSearchTextChange={setQuery}
         searchText={query}
       />
@@ -325,7 +355,7 @@ export function SearchCommand() {
       isLoading={
         librarySelection.isLoading || playback.isPerforming || state.isLoading
       }
-      searchBarPlaceholder="Search songs, albums, and artists"
+      searchBarPlaceholder="Search songs, albums, artists, and playlists"
       onSearchTextChange={setQuery}
       searchText={query}
       navigationTitle={getSearchNavigationTitle(
@@ -355,7 +385,7 @@ export function SearchCommand() {
       {query.trim().length === 0 && librarySelection.selectedLibrary ? (
         <List.EmptyView
           icon={Icon.MagnifyingGlass}
-          title="Search by Artist, Album or Track"
+          title="Search by Artist, Album, Track or Playlist"
           actions={
             <ActionPanel>
               <NowPlayingAction shortcut={{ modifiers: ["cmd"], key: "n" }} />
@@ -371,7 +401,7 @@ export function SearchCommand() {
         <List.EmptyView
           icon={Icon.MagnifyingGlass}
           title="No results"
-          description="Plex did not return any songs, albums, or artists for this search."
+          description="Plex did not return any songs, albums, artists, or playlists for this search."
           actions={
             <ActionPanel>
               <NowPlayingAction shortcut={{ modifiers: ["cmd"], key: "n" }} />
@@ -385,6 +415,7 @@ export function SearchCommand() {
         tracks={state.results.tracks}
         albums={state.results.albums}
         artists={state.results.artists}
+        playlists={state.results.playlists}
         onPlay={playback.play}
         onPlayNext={playback.playNext}
         onQueue={playback.queue}

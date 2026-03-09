@@ -529,6 +529,7 @@ function parsePlaylist(node: XmlNode): AudioPlaylist {
     browseKey: asString(node.key) ?? `/playlists/${ratingKey}/items`,
     title: requiredString(node.title, "title"),
     leafCount: asNumber(node.leafCount),
+    librarySectionKey: getLibrarySectionKey(node),
     thumb: getArtworkPath(node),
   };
 }
@@ -1293,42 +1294,25 @@ export async function getLibraryStats(
   };
 }
 
-async function playlistBelongsToSection(
-  playlist: AudioPlaylist,
-  sectionKey: string,
-): Promise<boolean> {
-  const container = await requestServer(
-    `${playlist.browseKey}?X-Plex-Container-Start=0&X-Plex-Container-Size=1`,
-  );
-  const firstItem =
-    arrayify(container.Metadata)[0] ?? arrayify(container.Track)[0];
-
-  if (!firstItem || typeof firstItem !== "object") {
-    return false;
-  }
-
-  return getLibrarySectionKey(firstItem as XmlNode) === sectionKey;
-}
-
 export async function getAudioPlaylists(
-  sectionKey: string,
+  _sectionKey: string,
 ): Promise<AudioPlaylist[]> {
-  const container = await requestServer("/playlists?playlistType=audio");
-  const playlists = arrayify(container.Playlist)
-    .filter((node): node is XmlNode => typeof node === "object")
-    .map(parsePlaylist);
-
-  const results = await Promise.allSettled(
-    playlists.map(async (playlist) =>
-      (await playlistBelongsToSection(playlist, sectionKey))
-        ? playlist
-        : undefined,
-    ),
+  void _sectionKey;
+  const container = await requestServer(
+    "/playlists?type=15&playlistType=audio",
   );
-
-  return results
-    .map((result) => (result.status === "fulfilled" ? result.value : undefined))
-    .filter((playlist): playlist is AudioPlaylist => Boolean(playlist));
+  return deduplicateByRatingKey([
+    ...arrayify(container.Playlist)
+      .filter((node): node is XmlNode => typeof node === "object")
+      .map(parsePlaylist),
+    ...arrayify(container.Metadata)
+      .filter(
+        (node): node is XmlNode =>
+          typeof node === "object" &&
+          asString((node as XmlNode).type) === "playlist",
+      )
+      .map(parsePlaylist),
+  ]);
 }
 
 export async function getArtists(sectionKey: string): Promise<MusicArtist[]> {
@@ -1387,11 +1371,18 @@ export async function searchLibrary(
   const trimmedQuery = query.trim();
 
   if (!trimmedQuery) {
-    return { tracks: [], albums: [], artists: [] };
+    return { tracks: [], albums: [], artists: [], playlists: [] };
   }
 
-  const container = await requestServer(
-    `/hubs/search?query=${encodeURIComponent(trimmedQuery)}&sectionId=${encodeURIComponent(sectionKey)}&limit=30&includeCollections=1&includeExternalMedia=0`,
+  const [container, playlists] = await Promise.all([
+    requestServer(
+      `/hubs/search?query=${encodeURIComponent(trimmedQuery)}&sectionId=${encodeURIComponent(sectionKey)}&limit=30&includeCollections=1&includeExternalMedia=0`,
+    ),
+    getAudioPlaylists(sectionKey),
+  ]);
+  const normalizedQuery = trimmedQuery.toLocaleLowerCase();
+  const matchingPlaylists = playlists.filter((playlist) =>
+    playlist.title.toLocaleLowerCase().includes(normalizedQuery),
   );
   const hubs = arrayify(container.Hub).filter(
     (node): node is XmlNode => typeof node === "object",
@@ -1433,6 +1424,7 @@ export async function searchLibrary(
     tracks: deduplicateByRatingKey(tracks),
     albums: hydratedAlbums,
     artists: deduplicateByRatingKey(artists),
+    playlists: matchingPlaylists,
   };
 }
 

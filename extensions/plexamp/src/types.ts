@@ -57,6 +57,7 @@ export interface AudioPlaylist {
   browseKey: string;
   title: string;
   leafCount?: number;
+  librarySectionKey?: string;
   thumb?: string;
 }
 
@@ -90,6 +91,7 @@ export interface SearchResults {
   tracks: MusicTrack[];
   albums: MusicAlbum[];
   artists: MusicArtist[];
+  playlists: AudioPlaylist[];
 }
 
 export interface PlexampClientInfo {

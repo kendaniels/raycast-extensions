@@ -350,19 +350,6 @@ function RootContent() {
         </ActionPanel>
       }
     >
-      <List.Section title="Artists">
-        {artists.items.map((artist) => (
-          <ArtistRow
-            key={artist.ratingKey}
-            artist={artist}
-            sectionKey={selectedLibrary.key}
-            onPlay={playback.play}
-            onPlayNext={playback.playNext}
-            onQueue={playback.queue}
-          />
-        ))}
-      </List.Section>
-
       <List.Section title="Playlists">
         {playlists.items.map((playlist) => (
           <List.Item
@@ -392,6 +379,19 @@ function RootContent() {
                 />
               </ActionPanel>
             }
+          />
+        ))}
+      </List.Section>
+
+      <List.Section title="Artists">
+        {artists.items.map((artist) => (
+          <ArtistRow
+            key={artist.ratingKey}
+            artist={artist}
+            sectionKey={selectedLibrary.key}
+            onPlay={playback.play}
+            onPlayNext={playback.playNext}
+            onQueue={playback.queue}
           />
         ))}
       </List.Section>
