@@ -203,12 +203,6 @@ export default function Command() {
       const reusableArtwork = sameAlbum ? prev.artworkUrl : "";
       const resolvedArtworkUrl = artworkUrl || reusableArtwork || "";
 
-      // Keep current menubar entry until artwork for the new media is ready.
-      // This avoids changing track/artist first and artwork later.
-      if (!resolvedArtworkUrl && prev.status === "ok" && prev.track) {
-        return prev;
-      }
-
       const next: NowPlayingState = {
         track,
         artist,

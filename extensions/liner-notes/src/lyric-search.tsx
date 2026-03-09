@@ -37,6 +37,7 @@ export default function Command(props: LaunchProps<{ arguments: Arguments.LyricS
     `https://genius.com/api/search/lyrics?q=${encodeURIComponent(searchQuery)}`,
     {
       keepPreviousData: true,
+      execute: searchQuery.length > 0,
     },
   );
   const {

@@ -1,8 +1,20 @@
 import { LocalStorage } from "@raycast/api";
 import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
+const MEDIA_CONTROL_COMMAND = "media-control";
+const MEDIA_CONTROL_TIMEOUT_MS = 2000;
+const MEDIA_CONTROL_ABSOLUTE_CANDIDATES = [
+  "/opt/homebrew/bin/media-control",
+  "/usr/local/bin/media-control",
+  "/opt/local/bin/media-control",
+  "/opt/homebrew/opt/media-control/bin/media-control",
+  "/usr/local/opt/media-control/bin/media-control",
+];
+
+let preferredMediaControlBinary: string | null | undefined;
 
 type LookupKind = "track" | "artist" | "album";
 
@@ -31,6 +43,21 @@ export type MediaControlDebugInfo = {
 type LookupOptions = {
   allowCacheFallbackOnIneligible?: boolean;
 };
+
+function mediaControlCandidates(): string[] {
+  if (preferredMediaControlBinary !== undefined) {
+    return preferredMediaControlBinary ? [preferredMediaControlBinary] : [];
+  }
+
+  const absoluteMatches = Array.from(
+    new Set(MEDIA_CONTROL_ABSOLUTE_CANDIDATES.filter((candidate) => existsSync(candidate))),
+  );
+  if (absoluteMatches.length > 0) {
+    return absoluteMatches;
+  }
+
+  return [MEDIA_CONTROL_COMMAND];
+}
 
 function isMissingBinaryError(error: unknown): boolean {
   const code =
@@ -137,14 +164,7 @@ export async function inspectNowPlaying(): Promise<MediaControlDebugInfo> {
     };
   }
 
-  const candidates = [
-    "media-control",
-    "/opt/homebrew/bin/media-control",
-    "/usr/local/bin/media-control",
-    "/opt/local/bin/media-control",
-    "/opt/homebrew/opt/media-control/bin/media-control",
-    "/usr/local/opt/media-control/bin/media-control",
-  ];
+  const candidates = mediaControlCandidates();
   const attempts: string[] = [];
   let missingBinaryAttempts = 0;
   const envPath = [process.env.PATH, "/opt/homebrew/bin", "/usr/local/bin", "/opt/local/bin"].filter(Boolean).join(":");
@@ -152,7 +172,7 @@ export async function inspectNowPlaying(): Promise<MediaControlDebugInfo> {
   for (const mediaControlBinary of candidates) {
     try {
       const { stdout, stderr } = await execFileAsync(mediaControlBinary, ["get"], {
-        timeout: 3000,
+        timeout: MEDIA_CONTROL_TIMEOUT_MS,
         maxBuffer: 1024 * 1024,
         env: {
           ...process.env,
@@ -161,6 +181,7 @@ export async function inspectNowPlaying(): Promise<MediaControlDebugInfo> {
       });
 
       const payload = JSON.parse(stdout) as unknown;
+      preferredMediaControlBinary = mediaControlBinary;
       return {
         query: formatNowPlayingSearchQuery(payload),
         stdout,
@@ -175,11 +196,16 @@ export async function inspectNowPlaying(): Promise<MediaControlDebugInfo> {
       const message = error instanceof Error ? error.message : String(error);
       if (isMissingBinaryError(error)) {
         missingBinaryAttempts += 1;
+      } else {
+        preferredMediaControlBinary = mediaControlBinary;
       }
       attempts.push(`${mediaControlBinary}: ${message}`);
     }
   }
   const isNotInstalled = missingBinaryAttempts === candidates.length;
+  if (isNotInstalled) {
+    preferredMediaControlBinary = null;
+  }
 
   return {
     query: null,
