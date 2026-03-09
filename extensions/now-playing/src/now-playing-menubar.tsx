@@ -199,12 +199,13 @@ export default function Command() {
   function setNowPlayingState(track: string, artist: string, album: string, artworkUrl: string) {
     setState((prev) => {
       const sameAlbum = !!prev.album && !!album && prev.album === album;
+      const sameMedia = prev.track === track && prev.artist === artist && prev.album === album;
       const reusableArtwork = sameAlbum ? prev.artworkUrl : "";
       const resolvedArtworkUrl = artworkUrl || reusableArtwork || "";
 
       // Keep current menubar entry until artwork for the new media is ready.
       // This avoids changing track/artist first and artwork later.
-      if (!resolvedArtworkUrl && prev.status === "ok" && prev.track) {
+      if (!resolvedArtworkUrl && sameMedia && prev.status === "ok" && prev.track) {
         return prev;
       }
 
