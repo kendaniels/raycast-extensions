@@ -138,14 +138,14 @@ export default function InterpretLyricsView({
       }
     }
 
-    if (!isPromptsLoading && !isDefaultPromptLoading) {
+    if (!isPromptsLoading && !isDefaultPromptLoading && selectedPromptId) {
       void run();
     }
 
     return () => {
       cancelled = true;
     };
-  }, [isDefaultPromptLoading, isPromptsLoading, selectedPrompt, songArtist, songLyrics, songTitle]);
+  }, [isDefaultPromptLoading, isPromptsLoading, selectedPrompt, selectedPromptId, songArtist, songLyrics, songTitle]);
 
   const navTitle = songTitle ? `Interpretation: ${songTitle}` : "Lyrics Interpretation";
 
