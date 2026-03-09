@@ -14,7 +14,7 @@ import { createReminder, getData } from "swift:../swift/AppleReminders";
 
 import { NewReminder } from "./create-reminder";
 import { Data } from "./hooks/useData";
-import { normalizePostCreateActions } from "./hooks/usePostCreateActions";
+import { normalizePostCreateActions, STORAGE_KEY } from "./hooks/usePostCreateActions";
 import { runPostCreateActions } from "./post-create-shortcuts";
 
 export default async function Command(props: LaunchProps<{ arguments: Arguments.QuickAddReminder }>) {
@@ -63,7 +63,7 @@ export default async function Command(props: LaunchProps<{ arguments: Arguments.
       }
 
       await createReminder(reminder);
-      const storedActions = await LocalStorage.getItem<string>("post-create-shortcut-actions");
+      const storedActions = await LocalStorage.getItem<string>(STORAGE_KEY);
       await runPostCreateActions(
         normalizePostCreateActions(storedActions ? JSON.parse(storedActions) : []),
         "quick-add",
@@ -191,7 +191,7 @@ Task text: "${props.fallbackText ?? props.arguments.text}"`;
     }
 
     await createReminder(newReminder);
-    const storedActions = await LocalStorage.getItem<string>("post-create-shortcut-actions");
+    const storedActions = await LocalStorage.getItem<string>(STORAGE_KEY);
     await runPostCreateActions(normalizePostCreateActions(storedActions ? JSON.parse(storedActions) : []), "quick-add");
 
     await showToast({

@@ -10,7 +10,7 @@ export type PostCreateAction = {
   scope: PostCreateActionScope;
 };
 
-const STORAGE_KEY = "post-create-shortcut-actions";
+export const STORAGE_KEY = "post-create-shortcut-actions";
 
 export const postCreateActionScopeOptions: { value: PostCreateActionScope; title: string }[] = [
   { value: "all", title: "All Create Flows" },

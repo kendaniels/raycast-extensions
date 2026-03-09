@@ -1,4 +1,4 @@
-import { execFile, spawn } from "node:child_process";
+import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
@@ -39,13 +39,4 @@ function parseShortcutListRow(line: string): ShortcutListRow | null {
 
 export async function runShortcut(nameOrIdentifier: string) {
   await execFileAsync("/usr/bin/shortcuts", ["run", nameOrIdentifier]);
-}
-
-export function launchShortcut(nameOrIdentifier: string) {
-  const child = spawn("/usr/bin/shortcuts", ["run", nameOrIdentifier], {
-    detached: true,
-    stdio: "ignore",
-  });
-
-  child.unref();
 }

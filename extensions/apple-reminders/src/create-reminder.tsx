@@ -14,7 +14,7 @@ import {
 } from "@raycast/api";
 import { FormValidation, MutatePromise, useForm } from "@raycast/utils";
 import { addMilliseconds, format, startOfToday } from "date-fns";
-import { ReactElement } from "react";
+import { ReactElement, useRef } from "react";
 import { createReminder } from "swift:../swift/AppleReminders";
 
 import LocationForm from "./components/LocationForm";
@@ -95,6 +95,8 @@ export function CreateReminderForm({ draftValues, listId, mutate }: CreateRemind
   } else if (selectTodayAsDefault) {
     initialDueDate = addMilliseconds(startOfToday(), 1);
   }
+
+  const submitOptionsRef = useRef<SubmitOptions | undefined>(undefined);
 
   async function submitReminder(values: CreateReminderValues, options?: SubmitOptions) {
     try {
@@ -215,9 +217,19 @@ export function CreateReminderForm({ draftValues, listId, mutate }: CreateRemind
       },
     },
     async onSubmit(values) {
-      await submitReminder(values);
+      await submitReminder(values, submitOptionsRef.current);
     },
   });
+
+  async function submitWithOptions(values: CreateReminderValues, options?: SubmitOptions) {
+    submitOptionsRef.current = options;
+
+    try {
+      await handleSubmit(values);
+    } finally {
+      submitOptionsRef.current = undefined;
+    }
+  }
 
   let recurrenceDescription = "";
   if (values.frequency && !getIntervalValidationError(values.interval)) {
@@ -393,10 +405,14 @@ export function CreateReminderForm({ draftValues, listId, mutate }: CreateRemind
       isLoading={isLoading || isLoadingLayout}
       actions={
         <ActionPanel>
-          <Action.SubmitForm icon={Icon.Plus} onSubmit={handleSubmit} title="Create Reminder" />
+          <Action.SubmitForm
+            icon={Icon.Plus}
+            onSubmit={(values) => submitWithOptions(values as CreateReminderValues)}
+            title="Create Reminder"
+          />
           <Action.SubmitForm
             icon={Icon.Window}
-            onSubmit={(values) => submitReminder(values as CreateReminderValues, { closeWindowAfterCreate: true })}
+            onSubmit={(values) => submitWithOptions(values as CreateReminderValues, { closeWindowAfterCreate: true })}
             title="Create Reminder and Close Window"
           />
           <Action.Push
