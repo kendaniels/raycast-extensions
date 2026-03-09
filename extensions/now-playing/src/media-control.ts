@@ -62,7 +62,7 @@ function asPayloadRecord(payload: unknown): Record<string, unknown> | null {
   return payload as Record<string, unknown>;
 }
 
-export function formatNowPlayingSearchQuery(payload: unknown): string | null {
+function formatNowPlayingSearchQuery(payload: unknown): string | null {
   const title = readStringField(payload, "title");
   const artist = readStringField(payload, "artist");
 
@@ -73,14 +73,9 @@ export function formatNowPlayingSearchQuery(payload: unknown): string | null {
   return [title, artist].filter(Boolean).join(" ");
 }
 
-export function formatNowPlayingAlbumSearchQuery(payload: unknown): string | null {
+function formatNowPlayingAlbumSearchQuery(payload: unknown): string | null {
   const album = readStringField(payload, "album");
-
-  if (!album) {
-    return null;
-  }
-
-  return album;
+  return album || null;
 }
 
 function queryForLookupKind(payload: unknown, kind: LookupKind): string | null {
