@@ -20,7 +20,8 @@ export default function History() {
     <>
       {!isHistoryLoading &&
         history
-          ?.sort((a, b) => b.viewedAt - a.viewedAt)
+          ?.slice()
+          .sort((a, b) => b.viewedAt - a.viewedAt)
           .map((item) => (
             <List.Item
               key={item.url}

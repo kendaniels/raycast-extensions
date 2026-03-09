@@ -62,7 +62,7 @@ export default function Command(props: LaunchProps<{ arguments: Arguments.LyricS
             <List.Item
               key={hit.result.id}
               title={hit.result.full_title}
-              subtitle={`${hit.highlights[0].value.replace("\n", " ")}`}
+              subtitle={`${hit.highlights[0].value.replaceAll("\n", " ")}`}
               icon={hit.result.header_image_thumbnail_url}
               actions={
                 <ActionPanel>

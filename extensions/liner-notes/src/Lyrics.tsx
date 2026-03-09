@@ -59,7 +59,7 @@ export default function Lyrics({
     if (!htmlData) return "";
 
     const $ = load(htmlData);
-    $("br").text("\n\n");
+    $("br").replaceWith("\n\n");
     let text = $("[data-lyrics-container=true]").find("[data-exclude-from-selection=true]").remove().end().text();
     text = text.replaceAll("[", "### [");
     return text;

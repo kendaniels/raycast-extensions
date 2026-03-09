@@ -198,20 +198,20 @@ export default function Command() {
   }
 
   function setNowPlayingState(track: string, artist: string, album: string, artworkUrl: string) {
+    const sameAlbum = !!state.album && !!album && state.album === album;
+    const reusableArtwork = sameAlbum ? state.artworkUrl : "";
+    const resolvedArtworkUrl = artworkUrl || reusableArtwork || "";
+    const next: NowPlayingState = {
+      track,
+      artist,
+      album,
+      artworkUrl: resolvedArtworkUrl,
+      status: "ok",
+    };
+
+    writeCachedState(next);
+
     setState((prev) => {
-      const sameAlbum = !!prev.album && !!album && prev.album === album;
-      const reusableArtwork = sameAlbum ? prev.artworkUrl : "";
-      const resolvedArtworkUrl = artworkUrl || reusableArtwork || "";
-
-      const next: NowPlayingState = {
-        track,
-        artist,
-        album,
-        artworkUrl: resolvedArtworkUrl,
-        status: "ok",
-      };
-      writeCachedState(next);
-
       if (
         prev.track === next.track &&
         prev.artist === next.artist &&
