@@ -6,7 +6,7 @@ import type {
   PlexSetupStatus,
 } from "./types";
 
-interface Preferences {
+interface PreferenceOverrides {
   plexampUrl?: string;
 }
 
@@ -44,7 +44,7 @@ function normalizeOptionalValue(value?: string): string | undefined {
   return normalized ? normalized : undefined;
 }
 
-function getPreferenceOverrides(): Preferences {
+function getPreferenceOverrides(): PreferenceOverrides {
   const preferences = getPreferenceValues<Preferences>();
   const plexampUrl = normalizeOptionalValue(preferences.plexampUrl);
 
@@ -113,7 +113,7 @@ async function getManagedConfig(): Promise<ManagedConfig> {
 }
 
 function buildResolvedConfig(
-  overrides: Preferences,
+  overrides: PreferenceOverrides,
   managed: ManagedConfig,
 ): ResolvedConfig {
   const plexToken = managed.plexToken ?? "";

@@ -214,20 +214,6 @@ export default function Command() {
     state.timeline.protocol && state.timeline.address && state.timeline.port
       ? `${state.timeline.protocol}://${state.timeline.address}:${state.timeline.port}`
       : undefined;
-
-  if (plexamp.error) {
-    return (
-      <PlexSetupView
-        navigationTitle="Now Playing"
-        problem={plexamp.error}
-        onConfigured={async () => {
-          await plexamp.reload();
-          await reload();
-        }}
-      />
-    );
-  }
-
   const navigateToAlbum = useCallback(async (track: MusicTrack) => {
     const resolvedTrack = await resolveNavigableTrack(track);
 
@@ -292,6 +278,19 @@ export default function Command() {
       });
     }
   }, []);
+
+  if (plexamp.error) {
+    return (
+      <PlexSetupView
+        navigationTitle="Now Playing"
+        problem={plexamp.error}
+        onConfigured={async () => {
+          await plexamp.reload();
+          await reload();
+        }}
+      />
+    );
+  }
 
   function renderClearQueueAction() {
     if (!state.timeline.playQueueID || !state.queue) {
