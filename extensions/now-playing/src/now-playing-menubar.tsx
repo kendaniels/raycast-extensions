@@ -1,4 +1,9 @@
 import { Cache, MenuBarExtra, getPreferenceValues, open } from "@raycast/api";
+import { createHash } from "node:crypto";
+import { existsSync } from "node:fs";
+import { access, mkdir, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { useEffect, useRef, useState } from "react";
 import { inspectNowPlayingForLookup } from "./media-control";
 
@@ -14,6 +19,28 @@ type NowPlayingState = {
 const menubarCache = new Cache({ namespace: "now-playing-menubar" });
 const LAST_STATE_CACHE_KEY = "last-state";
 const DEFAULT_TITLE_TEMPLATE = "{track} — {artist}";
+const ARTWORK_CACHE_DIR = join(tmpdir(), "raycast-now-playing-artwork");
+
+function normalizeArtworkUrl(value: string): string {
+  if (!value || value.startsWith("data:")) {
+    return "";
+  }
+
+  if (/^https?:\/\//i.test(value)) {
+    return value;
+  }
+
+  if (value.startsWith("file://")) {
+    const decodedPath = decodeURIComponent(value.replace(/^file:\/\//, ""));
+    return existsSync(decodedPath) ? decodedPath : "";
+  }
+
+  if (value.startsWith("/") && existsSync(value)) {
+    return value;
+  }
+
+  return "";
+}
 
 function defaultState(): NowPlayingState {
   return {
@@ -49,7 +76,7 @@ function readCachedState(): NowPlayingState | null {
       track: state.track,
       artist: state.artist,
       album: state.album,
-      artworkUrl: state.artworkUrl,
+      artworkUrl: normalizeArtworkUrl(state.artworkUrl),
       status: state.status,
       error: typeof state.error === "string" ? state.error : undefined,
     };
@@ -108,26 +135,72 @@ function menuTitle(state: NowPlayingState, template: string): string {
   return cleaned || state.track;
 }
 
-function toArtworkDataUri(data: string, mimeType: string): string {
-  const raw = data.trim();
-  if (!raw) {
+function artworkFileExtension(mimeType: string): string {
+  const normalized = mimeType.trim().toLowerCase();
+  switch (normalized) {
+    case "image/png":
+      return "png";
+    case "image/webp":
+      return "webp";
+    case "image/gif":
+      return "gif";
+    case "image/heic":
+    case "image/heif":
+      return "heic";
+    default:
+      return "jpg";
+  }
+}
+
+async function persistArtwork(raw: string, mimeType: string): Promise<string> {
+  const trimmed = raw.trim();
+  if (!trimmed) {
     return "";
   }
 
-  if (/^(https?:\/\/|data:|file:\/\/)/i.test(raw)) {
-    return raw;
+  if (/^https?:\/\//i.test(trimmed) || /^file:\/\//i.test(trimmed)) {
+    return normalizeArtworkUrl(trimmed);
   }
 
-  const mime = mimeType.trim() || "image/jpeg";
-  return `data:${mime};base64,${raw}`;
+  if (trimmed.startsWith("/")) {
+    try {
+      await access(trimmed);
+      return trimmed;
+    } catch {
+      // Fall through and treat non-existent leading-slash values as base64 payloads.
+    }
+  }
+
+  let base64 = trimmed;
+  let resolvedMimeType = mimeType.trim() || "image/jpeg";
+  const dataUriMatch = /^data:([^;,]+);base64,(.+)$/i.exec(trimmed);
+  if (dataUriMatch) {
+    resolvedMimeType = dataUriMatch[1] || resolvedMimeType;
+    base64 = dataUriMatch[2] || "";
+  }
+
+  try {
+    const buffer = Buffer.from(base64, "base64");
+    if (!buffer.length) {
+      return "";
+    }
+
+    const fileName = `${createHash("sha1").update(resolvedMimeType).update(":").update(base64).digest("hex")}.${artworkFileExtension(resolvedMimeType)}`;
+    const filePath = join(ARTWORK_CACHE_DIR, fileName);
+    await mkdir(ARTWORK_CACHE_DIR, { recursive: true });
+    await writeFile(filePath, buffer);
+    return filePath;
+  } catch {
+    return "";
+  }
 }
 
-function readArtworkUrl(payload: unknown): string {
+async function readArtworkUrl(payload: unknown): Promise<string> {
   const artworkMimeType = readStringField(payload, "artworkMimeType") || "image/jpeg";
   const artworkData =
     payload && typeof payload === "object" ? (payload as Record<string, unknown>)["artworkData"] : undefined;
   if (typeof artworkData === "string" && artworkData.trim()) {
-    return toArtworkDataUri(artworkData, artworkMimeType);
+    return persistArtwork(artworkData, artworkMimeType);
   }
   if (artworkData && typeof artworkData === "object") {
     const dataObject = artworkData as Record<string, unknown>;
@@ -137,7 +210,7 @@ function readArtworkUrl(payload: unknown): string {
       if (typeof value === "string" && value.trim()) {
         const nestedMime =
           (typeof dataObject["mimeType"] === "string" && dataObject["mimeType"].trim()) || artworkMimeType;
-        return toArtworkDataUri(value, nestedMime);
+        return persistArtwork(value, nestedMime);
       }
     }
   }
@@ -146,7 +219,7 @@ function readArtworkUrl(payload: unknown): string {
   for (const key of candidates) {
     const value = readStringField(payload, key);
     if (value) {
-      return value;
+      return persistArtwork(value, artworkMimeType);
     }
   }
   return "";
@@ -244,7 +317,7 @@ export default function Command() {
       const track = readStringField(info.payload, "title");
       const artist = readStringField(info.payload, "artist");
       const album = readStringField(info.payload, "album");
-      const artworkUrl = readArtworkUrl(info.payload);
+      const artworkUrl = await readArtworkUrl(info.payload);
 
       if (info.isNotInstalled) {
         setStateIfChanged({
@@ -310,7 +383,7 @@ export default function Command() {
     <MenuBarExtra
       isLoading={!hasInitialized}
       title={menuTitle(state, titleTemplate)}
-      icon={showArtworkInMenuBar ? state.artworkUrl || undefined : undefined}
+      icon={showArtworkInMenuBar && state.artworkUrl ? { source: state.artworkUrl } : undefined}
       tooltip="Now Playing"
     >
       {state.status === "missing-media-control" ? (
