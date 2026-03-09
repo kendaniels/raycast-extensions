@@ -79,11 +79,6 @@ function formatNowPlayingAlbumSearchQuery(payload: unknown): string | null {
 }
 
 function queryForLookupKind(payload: unknown, kind: LookupKind): string | null {
-  const album = readStringField(payload, "album");
-  if (!album) {
-    return null;
-  }
-
   if (kind === "album") {
     return formatNowPlayingAlbumSearchQuery(payload);
   }
