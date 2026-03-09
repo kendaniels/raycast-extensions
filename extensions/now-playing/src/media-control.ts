@@ -47,7 +47,7 @@ type LookupOptions = {
 function isMissingBinaryError(error: unknown): boolean {
   const code =
     error && typeof error === "object" && "code" in error ? String((error as { code?: unknown }).code || "") : "";
-  if (code === "ENOENT") {
+  if (code === "ENOENT" || code === "EACCES") {
     return true;
   }
 
@@ -55,10 +55,16 @@ function isMissingBinaryError(error: unknown): boolean {
     error && typeof error === "object" && "message" in error
       ? String((error as { message?: unknown }).message || "")
       : String(error || "");
-  return message.includes("ENOENT") || message.toLowerCase().includes("not found");
+  const normalizedMessage = message.toLowerCase();
+  return (
+    message.includes("ENOENT") ||
+    message.includes("EACCES") ||
+    normalizedMessage.includes("not found") ||
+    normalizedMessage.includes("permission denied")
+  );
 }
 
-function readStringField(payload: unknown, key: string): string {
+export function readStringField(payload: unknown, key: string): string {
   if (!payload || typeof payload !== "object") {
     return "";
   }

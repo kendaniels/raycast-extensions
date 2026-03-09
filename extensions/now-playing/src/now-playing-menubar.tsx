@@ -5,7 +5,7 @@ import { access, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { useEffect, useRef, useState } from "react";
-import { inspectNowPlayingForLookup } from "./media-control";
+import { inspectNowPlayingForLookup, readStringField } from "./media-control";
 
 type NowPlayingState = {
   track: string;
@@ -90,14 +90,6 @@ function writeCachedState(state: NowPlayingState) {
     return;
   }
   menubarCache.set(LAST_STATE_CACHE_KEY, JSON.stringify(state));
-}
-
-function readStringField(payload: unknown, key: string): string {
-  if (!payload || typeof payload !== "object") {
-    return "";
-  }
-  const value = (payload as Record<string, unknown>)[key];
-  return typeof value === "string" ? value.trim() : "";
 }
 
 function normalizeTemplate(template?: string): string {
