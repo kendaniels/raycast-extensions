@@ -56,9 +56,7 @@ export default function InterpretLyricsView({
     return DEFAULT_INTERPRETATION_PROMPTS;
   }, [storedPrompts]);
 
-  const [selectedPromptId, setSelectedPromptId] = useState(
-    promptId || defaultPromptId || DEFAULT_INTERPRETATION_PROMPTS[0].id,
-  );
+  const [selectedPromptId, setSelectedPromptId] = useState(promptId || "");
   const [markdown, setMarkdown] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -68,15 +66,12 @@ export default function InterpretLyricsView({
       return;
     }
 
-    if (
-      !selectedPromptId &&
-      defaultPromptId &&
-      defaultPromptId !== selectedPromptId &&
-      prompts.some((prompt) => prompt.id === defaultPromptId)
-    ) {
+    if (defaultPromptId && prompts.some((prompt) => prompt.id === defaultPromptId)) {
       setSelectedPromptId(defaultPromptId);
+    } else if (prompts[0]) {
+      setSelectedPromptId(prompts[0].id);
     }
-  }, [defaultPromptId, promptId, prompts, selectedPromptId]);
+  }, [defaultPromptId, promptId, prompts]);
 
   useEffect(() => {
     if (!prompts.some((prompt) => prompt.id === selectedPromptId)) {

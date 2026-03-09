@@ -62,7 +62,7 @@ export default function Command(props: LaunchProps<{ arguments: Arguments.LyricS
             <List.Item
               key={hit.result.id}
               title={hit.result.full_title}
-              subtitle={`${hit.highlights[0].value.replaceAll("\n", " ")}`}
+              subtitle={hit.highlights.length > 0 ? `${hit.highlights[0].value.replaceAll("\n", " ")}` : undefined}
               icon={hit.result.header_image_thumbnail_url}
               actions={
                 <ActionPanel>
@@ -71,23 +71,23 @@ export default function Command(props: LaunchProps<{ arguments: Arguments.LyricS
                     icon={Icon.Paragraph}
                     target={<Lyrics url={hit.result.url} title={hit.result.full_title} songId={hit.result.id} />}
                     onPush={() => {
-                      const existingIdx = history!.findIndex(
+                      const nextHistory = history ?? [];
+                      const existingIdx = nextHistory.findIndex(
                         (i) => i.title.toLowerCase() === hit.result.full_title.toLowerCase(),
                       );
+                      const viewedAt = Date.now();
                       if (existingIdx !== -1) {
-                        history![existingIdx] = {
-                          ...history![existingIdx],
-                          viewedAt: Date.now(),
-                        };
-                        setHistory(history!);
+                        setHistory(
+                          nextHistory.map((entry, idx) => (idx === existingIdx ? { ...entry, viewedAt } : entry)),
+                        );
                       } else {
                         setHistory(
-                          history?.concat({
+                          nextHistory.concat({
                             title: hit.result.full_title,
                             thumbnail: hit.result.header_image_thumbnail_url,
                             url: hit.result.url,
-                            viewedAt: Date.now(),
-                          }) || [],
+                            viewedAt,
+                          }),
                         );
                       }
                     }}

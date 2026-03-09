@@ -35,12 +35,17 @@ export default function History() {
                     icon={Icon.Paragraph}
                     target={<Lyrics url={item.url} title={item.title} songId={item.songId} />}
                     onPush={() => {
-                      const existingIdx = history!.findIndex((i) => i.title.toLowerCase() === item.title.toLowerCase());
-                      history![existingIdx] = {
-                        ...history![existingIdx],
-                        viewedAt: Date.now(),
-                      };
-                      setHistory(history!);
+                      const nextHistory = history ?? [];
+                      const existingIdx = nextHistory.findIndex(
+                        (i) => i.title.toLowerCase() === item.title.toLowerCase(),
+                      );
+                      if (existingIdx === -1) {
+                        return;
+                      }
+                      const viewedAt = Date.now();
+                      setHistory(
+                        nextHistory.map((entry, idx) => (idx === existingIdx ? { ...entry, viewedAt } : entry)),
+                      );
                     }}
                   />
                   <Action.OpenInBrowser title="Open in Browser" url={item.url} />
