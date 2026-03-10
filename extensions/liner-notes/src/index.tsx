@@ -238,9 +238,9 @@ export default function Command() {
         <History />
       ) : (
         <>
-          {(data?.response.hits || []).map((item, idx) => (
+          {(data?.response.hits || []).map((item) => (
             <List.Item
-              key={idx}
+              key={item.result.url}
               title={item.result.full_title}
               icon={item.result.song_art_image_thumbnail_url}
               actions={

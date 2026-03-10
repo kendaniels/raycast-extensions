@@ -51,9 +51,9 @@ export default function Command(props: LaunchProps<{ arguments: Arguments.Manual
       searchBarPlaceholder="Enter album, artist, or song..."
       throttle
     >
-      {getAlbumHits(data).map((item, idx) => (
+      {getAlbumHits(data).map((item) => (
         <List.Item
-          key={idx}
+          key={item.result.url}
           title={item.result.name || "Unknown Album"}
           subtitle={item.result.artist?.name || ""}
           icon={item.result.cover_art_url || item.result.header_image_thumbnail_url || Icon.AppWindowSidebarLeft}

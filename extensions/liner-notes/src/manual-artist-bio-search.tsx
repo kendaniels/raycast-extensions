@@ -47,9 +47,9 @@ export default function Command(props: LaunchProps<{ arguments: Arguments.Manual
       searchBarPlaceholder="Enter artist or song..."
       throttle
     >
-      {getArtistHits(data).map((item, idx) => (
+      {getArtistHits(data).map((item) => (
         <List.Item
-          key={idx}
+          key={item.result.url}
           title={item.result.name || "Unknown Artist"}
           icon={item.result.image_url || Icon.Person}
           actions={
