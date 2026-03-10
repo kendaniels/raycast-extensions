@@ -59,7 +59,10 @@ async function getServerIdentity(): Promise<ServerIdentity> {
         port: baseUrl.port || (baseUrl.protocol === "https:" ? "443" : "80"),
         protocol: baseUrl.protocol.replace(":", ""),
       };
-    })();
+    })().catch((error) => {
+      serverIdentityPromise = undefined;
+      throw error;
+    });
   }
 
   return serverIdentityPromise;
