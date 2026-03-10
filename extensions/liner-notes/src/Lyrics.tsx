@@ -44,6 +44,7 @@ export default function Lyrics({
 }) {
   const { data: htmlData, isLoading: isHtmlLoading } = useFetch<string>(url, {
     keepPreviousData: true,
+    parseResponse: (response) => response.text(),
   });
 
   // Fetch song metadata from API - only when there is a song ID
