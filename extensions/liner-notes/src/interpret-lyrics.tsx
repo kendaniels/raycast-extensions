@@ -66,18 +66,26 @@ export default function InterpretLyricsView({
       return;
     }
 
+    if (isDefaultPromptLoading) {
+      return;
+    }
+
     if (defaultPromptId && prompts.some((prompt) => prompt.id === defaultPromptId)) {
       setSelectedPromptId(defaultPromptId);
     } else if (prompts[0]) {
       setSelectedPromptId(prompts[0].id);
     }
-  }, [defaultPromptId, promptId, prompts]);
+  }, [defaultPromptId, isDefaultPromptLoading, promptId, prompts]);
 
   useEffect(() => {
+    if (!promptId && isDefaultPromptLoading) {
+      return;
+    }
+
     if (!prompts.some((prompt) => prompt.id === selectedPromptId)) {
       setSelectedPromptId(prompts[0]?.id || "");
     }
-  }, [prompts, selectedPromptId]);
+  }, [isDefaultPromptLoading, promptId, prompts, selectedPromptId]);
 
   const selectedPrompt = useMemo(
     () => prompts.find((prompt) => prompt.id === selectedPromptId) || prompts[0],

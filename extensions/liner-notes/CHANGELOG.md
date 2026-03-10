@@ -4,7 +4,7 @@
 - Refresh store screenshots and align metadata image names with the new slug.
 - Prepare release metadata and assets for `v1.0.1`.
 
-## [Feature Additions] - 2026-02-25
+## [Feature Additions] - {PR_MERGE_DATE}
 - Added automatic lyric search based on media currently playing (requires `media-control` library).
 - Added AI lyric interpretation.
 - Added prompt management interface.
