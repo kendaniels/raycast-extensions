@@ -72,7 +72,7 @@ export default function Command() {
       <List.Section title="Prompts">
         {prompts.map((prompt) => (
           <List.Item
-            key={`${prompt.id}-${prompt.id === resolvedDefaultPromptId ? "default" : "normal"}`}
+            key={prompt.id}
             title={prompt.title}
             subtitle={prompt.id}
             accessories={[
