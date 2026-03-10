@@ -149,7 +149,7 @@ function readArtworkUrl(payload: unknown): string {
 }
 
 export default function Command() {
-  const preferences = getPreferenceValues<Preferences>();
+  const preferences = getPreferenceValues<Preferences.NowPlayingMenubar>();
   const titleTemplate = normalizeTemplate(preferences.menuBarTitleTemplate);
   const showArtworkInMenuBar = preferences.showAlbumArtwork ?? true;
   const cachedState = readCachedState();
