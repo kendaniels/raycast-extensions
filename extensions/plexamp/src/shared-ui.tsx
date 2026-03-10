@@ -44,12 +44,12 @@ export function NowPlayingAction(props?: { shortcut?: Keyboard.Shortcut }) {
       icon={Icon.Play}
       shortcut={props?.shortcut}
       onAction={() =>
-        environment.commandName === "player-controls"
+        void (environment.commandName === "player-controls"
           ? Promise.resolve()
           : launchCommand({
               name: "player-controls",
               type: LaunchType.UserInitiated,
-            })
+            }))
       }
     />
   );
