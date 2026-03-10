@@ -4,13 +4,7 @@
   "title": "Liner Notes",
   "description": "Search by song title to instantly view lyrics, or enter remembered lyrics to quickly find the song's title, utilizing the Genius Lyrics API.",
   "icon": "command-icon-v2.png",
-  "author": "tkdkid1000",
-  "contributors": [
-    "johnstclair",
-    "ryanlauderbach",
-    "jacperegrinedavies",
-    "kendaniels"
-  ],
+  "author": "kendaniels",
   "categories": [
     "Media"
   ],
