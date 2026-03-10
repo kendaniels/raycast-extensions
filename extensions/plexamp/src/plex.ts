@@ -7,11 +7,7 @@ export {
   saveSelectedLibrary,
   saveSelectedServer,
 } from "./plex-config";
-export {
-  checkPlexAuthPin,
-  createPlexAuthPin,
-  discoverPlexServers,
-} from "./plex-auth";
+export { checkPlexAuthPin, createPlexAuthPin, discoverPlexServers } from "./plex-auth";
 export {
   getAlbumsForArtist,
   getArtists,

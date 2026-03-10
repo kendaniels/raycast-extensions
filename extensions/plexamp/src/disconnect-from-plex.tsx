@@ -1,11 +1,4 @@
-import {
-  Action,
-  ActionPanel,
-  Detail,
-  Icon,
-  Toast,
-  showToast,
-} from "@raycast/api";
+import { Action, ActionPanel, Detail, Icon, Toast, showToast } from "@raycast/api";
 import { useCallback, useState } from "react";
 
 import { clearManagedConfiguration } from "./plex";

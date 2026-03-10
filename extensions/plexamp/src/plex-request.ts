@@ -1,11 +1,7 @@
 import { LocalStorage, environment } from "@raycast/api";
 
 import { getClientIdentifier } from "./plex-client";
-import {
-  getConfig,
-  getConfiguredPlexampUrl,
-  requireServerConfig,
-} from "./plex-config";
+import { getConfig, getConfiguredPlexampUrl, requireServerConfig } from "./plex-config";
 import { parseMediaContainer } from "./plex-parsing";
 import type { TimelineInfo } from "./types";
 import type { XmlNode } from "./plex-parsing";
@@ -20,9 +16,7 @@ async function nextCommandId(): Promise<string> {
   return next;
 }
 
-function normalizeHeaders(
-  extraHeaders?: RequestInit["headers"],
-): Record<string, string> {
+function normalizeHeaders(extraHeaders?: RequestInit["headers"]): Record<string, string> {
   if (!extraHeaders) {
     return {};
   }
@@ -43,8 +37,7 @@ async function getBaseHeaders(
     "X-Plex-Device-Name": `${environment.extensionName ?? "Raycast"} Controller`,
     "X-Plex-Product": environment.extensionName ?? "Raycast Plexamp",
     "X-Plex-Version": "0.1.0",
-    "X-Plex-Platform":
-      process.platform === "darwin" ? "macOS" : process.platform,
+    "X-Plex-Platform": process.platform === "darwin" ? "macOS" : process.platform,
     "X-Plex-Provides": "controller",
     ...extra,
   };
@@ -85,20 +78,12 @@ function formatRequestFailureMessage(response: Response, body: string): string {
   return `Request failed (${response.status} ${response.statusText}): ${body || new URL(response.url).pathname}`;
 }
 
-async function requestPlex<T>(
-  baseUrl: string,
-  path: string,
-  options: PlexRequestOptions<T>,
-): Promise<T> {
+async function requestPlex<T>(baseUrl: string, path: string, options: PlexRequestOptions<T>): Promise<T> {
   const url = new URL(path, `${baseUrl}/`);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
-  if (
-    options.includeTokenQuery &&
-    options.token &&
-    !url.searchParams.has("X-Plex-Token")
-  ) {
+  if (options.includeTokenQuery && options.token && !url.searchParams.has("X-Plex-Token")) {
     url.searchParams.set("X-Plex-Token", options.token);
   }
 
@@ -107,11 +92,7 @@ async function requestPlex<T>(
   try {
     response = await fetch(url, {
       method: options.init?.method ?? "GET",
-      headers: await getBaseHeaders(
-        options.init?.headers,
-        options.token,
-        options.accept,
-      ),
+      headers: await getBaseHeaders(options.init?.headers, options.token, options.accept),
       body: options.init?.body,
       signal: controller.signal,
     });
@@ -161,33 +142,22 @@ async function requestXml(
         );
       }
 
-      return new Error(
-        `Could not reach Plex server at ${host}. Original error: ${message}`,
-      );
+      return new Error(`Could not reach Plex server at ${host}. Original error: ${message}`);
     },
   });
 }
 
-async function requestJson<T>(
-  baseUrl: string,
-  path: string,
-  init?: RequestInit,
-  token?: string,
-): Promise<T> {
+async function requestJson<T>(baseUrl: string, path: string, init?: RequestInit, token?: string): Promise<T> {
   return requestPlex(baseUrl, path, {
     init,
     token,
     accept: "application/json",
     parse: async (response) => (await response.json()) as T,
-    onConnectionError: (url, message) =>
-      new Error(`Could not reach ${url.host}. Original error: ${message}`),
+    onConnectionError: (url, message) => new Error(`Could not reach ${url.host}. Original error: ${message}`),
   });
 }
 
-export async function requestPlayer(
-  path: string,
-  params: Record<string, string | undefined> = {},
-): Promise<XmlNode> {
+export async function requestPlayer(path: string, params: Record<string, string | undefined> = {}): Promise<XmlNode> {
   const config = await getConfig();
   const url = new URL(path, `${config.plexampUrl}/`);
   const commandId = await nextCommandId();
@@ -200,27 +170,12 @@ export async function requestPlayer(
     }
   }
 
-  return requestXml(
-    config.plexampUrl,
-    url.pathname + url.search,
-    undefined,
-    false,
-    config.plexToken,
-  );
+  return requestXml(config.plexampUrl, url.pathname + url.search, undefined, false, config.plexToken);
 }
 
-export async function requestServer(
-  path: string,
-  init?: RequestInit,
-): Promise<XmlNode> {
+export async function requestServer(path: string, init?: RequestInit): Promise<XmlNode> {
   const config = await requireServerConfig();
-  return requestXml(
-    config.plexServerUrl,
-    path,
-    init,
-    true,
-    config.plexServerToken ?? config.plexToken,
-  );
+  return requestXml(config.plexServerUrl, path, init, true, config.plexServerToken ?? config.plexToken);
 }
 
 export async function requestServerWithConnection(
@@ -232,9 +187,7 @@ export async function requestServerWithConnection(
   return requestXml(baseUrl, path, init, true, token);
 }
 
-export function getTimelineServerBaseUrl(
-  timeline: TimelineInfo,
-): string | undefined {
+export function getTimelineServerBaseUrl(timeline: TimelineInfo): string | undefined {
   if (!timeline.protocol || !timeline.address || !timeline.port) {
     return undefined;
   }
@@ -257,10 +210,7 @@ export async function requestTimelineServer(
   return requestServerWithConnection(baseUrl, path, plexToken, init);
 }
 
-export function isRequestStatusError(
-  error: unknown,
-  statusCode: number,
-): boolean {
+export function isRequestStatusError(error: unknown, statusCode: number): boolean {
   if (error instanceof PlexRequestError) {
     return error.statusCode === statusCode;
   }
@@ -269,10 +219,7 @@ export function isRequestStatusError(
   return message.includes(`Request failed (${statusCode} `);
 }
 
-export async function requestPlayQueueViaPlayer(
-  playQueueId: string,
-  params: URLSearchParams,
-): Promise<XmlNode> {
+export async function requestPlayQueueViaPlayer(playQueueId: string, params: URLSearchParams): Promise<XmlNode> {
   return requestPlayer(`/playQueues/${encodeURIComponent(playQueueId)}`, {
     ...Object.fromEntries(params.entries()),
   });

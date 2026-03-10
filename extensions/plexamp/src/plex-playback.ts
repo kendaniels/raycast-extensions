@@ -1,8 +1,4 @@
-import {
-  getConfig,
-  registerConfigInvalidator,
-  requireServerConfig,
-} from "./plex-config";
+import { getConfig, registerConfigInvalidator, requireServerConfig } from "./plex-config";
 import {
   parseMetadataItem,
   parseMetadataNode,
@@ -21,16 +17,8 @@ import {
   requestServerWithConnection,
   requestTimelineServer,
 } from "./plex-request";
-import {
-  getMetadataByKeyForTimeline,
-  getMetadataByRatingKey,
-} from "./plex-library";
-import type {
-  MusicTrack,
-  PlayQueueInfo,
-  PlayableItem,
-  TimelineInfo,
-} from "./types";
+import { getMetadataByKeyForTimeline, getMetadataByRatingKey } from "./plex-library";
+import type { MusicTrack, PlayQueueInfo, PlayableItem, TimelineInfo } from "./types";
 
 interface ServerIdentity {
   machineIdentifier: string;
@@ -54,15 +42,11 @@ async function getServerIdentity(): Promise<ServerIdentity> {
       let machineIdentifier = config.serverMachineIdentifier;
 
       if (!machineIdentifier) {
-        machineIdentifier = asString(
-          (await requestServer("/")).machineIdentifier,
-        );
+        machineIdentifier = asString((await requestServer("/")).machineIdentifier);
       }
 
       if (!machineIdentifier) {
-        machineIdentifier = asString(
-          (await requestServer("/identity")).machineIdentifier,
-        );
+        machineIdentifier = asString((await requestServer("/identity")).machineIdentifier);
       }
 
       if (!machineIdentifier) {
@@ -81,10 +65,7 @@ async function getServerIdentity(): Promise<ServerIdentity> {
   return serverIdentityPromise;
 }
 
-function buildPlayableUri(
-  machineIdentifier: string,
-  item: PlayableItem,
-): string {
+function buildPlayableUri(machineIdentifier: string, item: PlayableItem): string {
   if (item.type === "playlist") {
     return "";
   }
@@ -94,12 +75,8 @@ function buildPlayableUri(
 
 export async function getTimeline(): Promise<TimelineInfo> {
   const container = await requestPlayer("/player/timeline/poll", { wait: "0" });
-  const timelines = arrayify(container.Timeline).filter(
-    (node): node is XmlNode => typeof node === "object",
-  );
-  const musicTimeline =
-    timelines.find((timeline) => asString(timeline.type) === "music") ??
-    timelines[0];
+  const timelines = arrayify(container.Timeline).filter((node): node is XmlNode => typeof node === "object");
+  const musicTimeline = timelines.find((timeline) => asString(timeline.type) === "music") ?? timelines[0];
 
   if (!musicTimeline) {
     return { state: "stopped" };
@@ -147,9 +124,7 @@ export async function getPlayQueue(
   }
 
   try {
-    const container = await requestServer(
-      `/playQueues/${encodeURIComponent(playQueueId)}?${params.toString()}`,
-    );
+    const container = await requestServer(`/playQueues/${encodeURIComponent(playQueueId)}?${params.toString()}`);
     return parsePlayQueue(container);
   } catch (error) {
     if (isRequestStatusError(error, 400) || isRequestStatusError(error, 404)) {
@@ -158,9 +133,7 @@ export async function getPlayQueue(
         return parsePlayQueue(container);
       } catch {
         if (isRequestStatusError(error, 400)) {
-          const fallbackContainer = await requestServer(
-            `/playQueues/${encodeURIComponent(playQueueId)}?own=1`,
-          );
+          const fallbackContainer = await requestServer(`/playQueues/${encodeURIComponent(playQueueId)}?own=1`);
           return parsePlayQueue(fallbackContainer);
         }
       }
@@ -179,9 +152,7 @@ export async function getPlayQueueForTimeline(
   },
 ): Promise<PlayQueueInfo> {
   if (!timeline.playQueueID) {
-    throw new Error(
-      "The current Plexamp timeline does not include a play queue.",
-    );
+    throw new Error("The current Plexamp timeline does not include a play queue.");
   }
 
   const baseUrl = getTimelineServerBaseUrl(timeline);
@@ -214,10 +185,7 @@ export async function getPlayQueueForTimeline(
     return parsePlayQueue(container);
   } catch (error) {
     if (isRequestStatusError(error, 400) || isRequestStatusError(error, 404)) {
-      const container = await requestPlayQueueViaPlayer(
-        timeline.playQueueID,
-        params,
-      );
+      const container = await requestPlayQueueViaPlayer(timeline.playQueueID, params);
       return parsePlayQueue(container);
     }
 
@@ -274,11 +242,7 @@ async function seekTo(offset: number): Promise<void> {
   });
 }
 
-async function addToPlayQueue(
-  playQueueId: string,
-  item: PlayableItem,
-  next = false,
-): Promise<void> {
+async function addToPlayQueue(playQueueId: string, item: PlayableItem, next = false): Promise<void> {
   const identity = await getServerIdentity();
   const params = new URLSearchParams({ type: "audio" });
 
@@ -297,15 +261,9 @@ async function addToPlayQueue(
   });
 }
 
-async function addToPlayQueueForTimeline(
-  timeline: TimelineInfo,
-  item: PlayableItem,
-  next = false,
-): Promise<void> {
+async function addToPlayQueueForTimeline(timeline: TimelineInfo, item: PlayableItem, next = false): Promise<void> {
   if (!timeline.playQueueID) {
-    throw new Error(
-      "The current Plexamp timeline does not include a play queue.",
-    );
+    throw new Error("The current Plexamp timeline does not include a play queue.");
   }
 
   const baseUrl = getTimelineServerBaseUrl(timeline);
@@ -316,8 +274,7 @@ async function addToPlayQueueForTimeline(
   }
 
   const { plexToken } = await getConfig();
-  const machineIdentifier =
-    timeline.machineIdentifier ?? (await getServerIdentity()).machineIdentifier;
+  const machineIdentifier = timeline.machineIdentifier ?? (await getServerIdentity()).machineIdentifier;
   const params = new URLSearchParams({ type: "audio" });
 
   if (next) {
@@ -330,12 +287,9 @@ async function addToPlayQueueForTimeline(
     params.set("uri", buildPlayableUri(machineIdentifier, item));
   }
 
-  await requestServerWithConnection(
-    baseUrl,
-    `/playQueues/${timeline.playQueueID}?${params.toString()}`,
-    plexToken,
-    { method: "PUT" },
-  );
+  await requestServerWithConnection(baseUrl, `/playQueues/${timeline.playQueueID}?${params.toString()}`, plexToken, {
+    method: "PUT",
+  });
 }
 
 async function movePlayQueueItemInternal(
@@ -375,9 +329,7 @@ async function createExplicitQueueFromTimeline(
           : undefined;
 
   if (!currentItem || currentItem.type !== "track") {
-    throw new Error(
-      "Could not access the current Plexamp queue, and the current track metadata was unavailable.",
-    );
+    throw new Error("Could not access the current Plexamp queue, and the current track metadata was unavailable.");
   }
 
   const queue = await createPlayQueue(currentItem);
@@ -442,13 +394,9 @@ export async function removePlayQueueItem(
   playQueueItemId: string,
   timeline?: TimelineInfo,
 ): Promise<void> {
-  await requestTimelineServer(
-    timeline ?? { state: "unknown" },
-    `/playQueues/${playQueueId}/items/${playQueueItemId}`,
-    {
-      method: "DELETE",
-    },
-  );
+  await requestTimelineServer(timeline ?? { state: "unknown" }, `/playQueues/${playQueueId}/items/${playQueueItemId}`, {
+    method: "DELETE",
+  });
   await refreshPlayQueue(playQueueId);
 }
 
@@ -475,17 +423,12 @@ export async function clearPlayQueue(
     selectedItemId = selectedItemId ?? queue.selectedItemID;
 
     if (!selectedItemId) {
-      throw new Error(
-        "Could not determine the current queue item to preserve.",
-      );
+      throw new Error("Could not determine the current queue item to preserve.");
     }
 
     const removableItemIds = queue.items
       .map((item) => item.playQueueItemID)
-      .filter(
-        (itemId): itemId is string =>
-          Boolean(itemId) && itemId !== selectedItemId,
-      );
+      .filter((itemId): itemId is string => Boolean(itemId) && itemId !== selectedItemId);
 
     if (removableItemIds.length === 0) {
       await refreshPlayQueue(playQueueId);
@@ -493,13 +436,9 @@ export async function clearPlayQueue(
     }
 
     for (const itemId of removableItemIds) {
-      await requestTimelineServer(
-        timeline ?? { state: "unknown" },
-        `/playQueues/${playQueueId}/items/${itemId}`,
-        {
-          method: "DELETE",
-        },
-      );
+      await requestTimelineServer(timeline ?? { state: "unknown" }, `/playQueues/${playQueueId}/items/${itemId}`, {
+        method: "DELETE",
+      });
     }
 
     await refreshPlayQueue(playQueueId);
@@ -515,12 +454,7 @@ export async function movePlayQueueItem(
   afterPlayQueueItemId?: string,
   timeline?: TimelineInfo,
 ): Promise<void> {
-  await movePlayQueueItemInternal(
-    playQueueId,
-    playQueueItemId,
-    afterPlayQueueItemId,
-    timeline,
-  );
+  await movePlayQueueItemInternal(playQueueId, playQueueItemId, afterPlayQueueItemId, timeline);
   await refreshPlayQueue(playQueueId);
 }
 
@@ -540,9 +474,7 @@ export async function skipPrevious(): Promise<void> {
   await requestPlayer("/player/playback/skipPrevious", { type: "music" });
 }
 
-async function setPlaybackParameters(
-  params: Record<string, string | undefined>,
-): Promise<void> {
+async function setPlaybackParameters(params: Record<string, string | undefined>): Promise<void> {
   await requestPlayer("/player/playback/setParameters", {
     type: "music",
     ...params,

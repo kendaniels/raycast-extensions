@@ -1,19 +1,8 @@
-import {
-  Icon,
-  LaunchType,
-  MenuBarExtra,
-  launchCommand,
-  openExtensionPreferences,
-} from "@raycast/api";
+import { Icon, LaunchType, MenuBarExtra, launchCommand, openExtensionPreferences } from "@raycast/api";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { formatNowPlayingMenuBarTitle } from "./format";
-import {
-  getImageUrl,
-  getMetadataByKey,
-  getMetadataByRatingKey,
-  getTimeline,
-} from "./plex";
+import { getImageUrl, getMetadataByKey, getMetadataByRatingKey, getTimeline } from "./plex";
 import type { MetadataItem, TimelineInfo } from "./types";
 
 interface MenuBarState {
@@ -64,38 +53,21 @@ export default function Command() {
     void reload();
   }, [reload]);
 
-  const title = useMemo(
-    () => formatNowPlayingMenuBarTitle(state.current),
-    [state.current],
-  );
-  const icon = state.current?.thumb
-    ? { source: getImageUrl(state.current.thumb) ?? Icon.Music }
-    : Icon.Music;
+  const title = useMemo(() => formatNowPlayingMenuBarTitle(state.current), [state.current]);
+  const icon = state.current?.thumb ? { source: getImageUrl(state.current.thumb) ?? Icon.Music } : Icon.Music;
   const subtitle =
     state.current?.type === "track"
-      ? [state.current.parentTitle, state.current.grandparentTitle]
-          .filter(Boolean)
-          .join(" - ")
+      ? [state.current.parentTitle, state.current.grandparentTitle].filter(Boolean).join(" - ")
       : state.current?.type === "album"
         ? state.current.parentTitle
         : undefined;
 
   return (
-    <MenuBarExtra
-      isLoading={isLoading}
-      icon={icon}
-      title={title}
-      tooltip={state.error ?? title}
-    >
+    <MenuBarExtra isLoading={isLoading} icon={icon} title={title} tooltip={state.error ?? title}>
       <MenuBarExtra.Section title="Playback">
         <MenuBarExtra.Item title={title} icon={icon} />
-        {subtitle ? (
-          <MenuBarExtra.Item title={subtitle} icon={Icon.Music} />
-        ) : null}
-        <MenuBarExtra.Item
-          title={`State: ${state.timeline.state}`}
-          icon={Icon.Play}
-        />
+        {subtitle ? <MenuBarExtra.Item title={subtitle} icon={Icon.Music} /> : null}
+        <MenuBarExtra.Item title={`State: ${state.timeline.state}`} icon={Icon.Play} />
       </MenuBarExtra.Section>
       {state.error ? (
         <MenuBarExtra.Section title="Error">
@@ -113,16 +85,8 @@ export default function Command() {
             })
           }
         />
-        <MenuBarExtra.Item
-          title="Refresh"
-          icon={Icon.ArrowClockwise}
-          onAction={() => void reload()}
-        />
-        <MenuBarExtra.Item
-          title="Open Extension Settings"
-          icon={Icon.Gear}
-          onAction={openExtensionPreferences}
-        />
+        <MenuBarExtra.Item title="Refresh" icon={Icon.ArrowClockwise} onAction={() => void reload()} />
+        <MenuBarExtra.Item title="Open Extension Settings" icon={Icon.Gear} onAction={openExtensionPreferences} />
       </MenuBarExtra.Section>
     </MenuBarExtra>
   );

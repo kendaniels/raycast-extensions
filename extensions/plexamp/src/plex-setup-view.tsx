@@ -27,19 +27,9 @@ import {
 } from "./plex";
 import { isRequestStatusError } from "./plex-request";
 import { PreferencesAction } from "./shared-ui";
-import type {
-  LibrarySection,
-  PlexAuthPin,
-  PlexServerResource,
-  PlexSetupStatus,
-} from "./types";
+import type { LibrarySection, PlexAuthPin, PlexServerResource, PlexSetupStatus } from "./types";
 
-type SetupStage =
-  | "loading"
-  | "auth"
-  | "waiting-auth"
-  | "library-selection"
-  | "plexamp";
+type SetupStage = "loading" | "auth" | "waiting-auth" | "library-selection" | "plexamp";
 
 interface ServerLibraries {
   server: PlexServerResource;
@@ -77,12 +67,8 @@ function setupDescription(status?: PlexSetupStatus, problem?: string): string {
 
 function serverAccessories(server: PlexServerResource): List.Item.Accessory[] {
   return [
-    ...(server.preferredConnection?.localNetwork
-      ? [{ tag: { value: "LAN", color: Color.Blue } }]
-      : []),
-    ...(server.sourceTitle
-      ? [{ text: server.sourceTitle, tooltip: "Shared By" }]
-      : []),
+    ...(server.preferredConnection?.localNetwork ? [{ tag: { value: "LAN", color: Color.Blue } }] : []),
+    ...(server.sourceTitle ? [{ text: server.sourceTitle, tooltip: "Shared By" }] : []),
   ];
 }
 
@@ -229,10 +215,7 @@ export function PlexSetupView(props: PlexSetupViewProps) {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const status = await getPlexSetupStatus();
-      const nextStage =
-        !status.hasEffectiveToken || isRequestStatusError(error, 401)
-          ? "auth"
-          : "plexamp";
+      const nextStage = !status.hasEffectiveToken || isRequestStatusError(error, 401) ? "auth" : "plexamp";
 
       setState({
         isLoading: false,
@@ -269,8 +252,7 @@ export function PlexSetupView(props: PlexSetupViewProps) {
         setState((current) => ({
           ...current,
           stage: "auth",
-          problem:
-            "The Plex sign-in session expired before it completed. Start the sign-in again.",
+          problem: "The Plex sign-in session expired before it completed. Start the sign-in again.",
         }));
         clearInterval(interval);
         return;
@@ -389,10 +371,7 @@ export function PlexSetupView(props: PlexSetupViewProps) {
         searchBarPlaceholder="Choose a Plex music library"
       >
         {state.isLoading && state.serverLibraries.length === 0 ? (
-          <List.EmptyView
-            icon={Icon.MagnifyingGlass}
-            title="Searching for libraries, please wait"
-          />
+          <List.EmptyView icon={Icon.MagnifyingGlass} title="Searching for libraries, please wait" />
         ) : state.serverLibraries.length === 0 ? (
           <List.EmptyView
             icon={Icon.Network}
@@ -400,27 +379,15 @@ export function PlexSetupView(props: PlexSetupViewProps) {
             description={setupDescription(state.status, state.problem)}
             actions={
               <ActionPanel>
-                <Action
-                  title="Refresh Libraries"
-                  icon={Icon.ArrowClockwise}
-                  onAction={() => void reload()}
-                />
-                <Action
-                  title="Sign in Again"
-                  icon={Icon.Person}
-                  onAction={() => void startSignIn()}
-                />
+                <Action title="Refresh Libraries" icon={Icon.ArrowClockwise} onAction={() => void reload()} />
+                <Action title="Sign in Again" icon={Icon.Person} onAction={() => void startSignIn()} />
                 <PreferencesAction />
               </ActionPanel>
             }
           />
         ) : null}
         {state.serverLibraries.map(({ server, libraries }) => (
-          <List.Section
-            key={server.clientIdentifier}
-            title={server.name}
-            subtitle={server.preferredConnection?.uri}
-          >
+          <List.Section key={server.clientIdentifier} title={server.name} subtitle={server.preferredConnection?.uri}>
             {libraries.length > 0 ? (
               libraries.map((library) => (
                 <List.Item
@@ -439,9 +406,7 @@ export function PlexSetupView(props: PlexSetupViewProps) {
                         ]
                       : []),
                     ...serverAccessories(server),
-                    ...(library.totalSize !== undefined
-                      ? [{ text: `${library.totalSize} artists` }]
-                      : []),
+                    ...(library.totalSize !== undefined ? [{ text: `${library.totalSize} artists` }] : []),
                   ]}
                   actions={
                     <ActionPanel>
@@ -450,16 +415,8 @@ export function PlexSetupView(props: PlexSetupViewProps) {
                         icon={Icon.CheckCircle}
                         onAction={() => void chooseLibrary(library, server)}
                       />
-                      <Action
-                        title="Refresh Libraries"
-                        icon={Icon.ArrowClockwise}
-                        onAction={() => void reload()}
-                      />
-                      <Action
-                        title="Reset Setup"
-                        icon={Icon.Trash}
-                        onAction={() => void resetSetup()}
-                      />
+                      <Action title="Refresh Libraries" icon={Icon.ArrowClockwise} onAction={() => void reload()} />
+                      <Action title="Reset Setup" icon={Icon.Trash} onAction={() => void resetSetup()} />
                       <PreferencesAction />
                     </ActionPanel>
                   }
@@ -473,16 +430,8 @@ export function PlexSetupView(props: PlexSetupViewProps) {
                 accessories={serverAccessories(server)}
                 actions={
                   <ActionPanel>
-                    <Action
-                      title="Refresh Libraries"
-                      icon={Icon.ArrowClockwise}
-                      onAction={() => void reload()}
-                    />
-                    <Action
-                      title="Reset Setup"
-                      icon={Icon.Trash}
-                      onAction={() => void resetSetup()}
-                    />
+                    <Action title="Refresh Libraries" icon={Icon.ArrowClockwise} onAction={() => void reload()} />
+                    <Action title="Reset Setup" icon={Icon.Trash} onAction={() => void resetSetup()} />
                     <PreferencesAction />
                   </ActionPanel>
                 }
@@ -502,9 +451,7 @@ export function PlexSetupView(props: PlexSetupViewProps) {
         : "Sign in to Plex";
   const description =
     state.stage === "waiting-auth" || state.stage === "auth"
-      ? [visibleProblem(state.problem), "Press return to sign in to Plex"]
-          .filter(Boolean)
-          .join("\n\n")
+      ? [visibleProblem(state.problem), "Press return to sign in to Plex"].filter(Boolean).join("\n\n")
       : setupDescription(state.status, visibleProblem(state.problem));
 
   return (
@@ -516,11 +463,7 @@ export function PlexSetupView(props: PlexSetupViewProps) {
         actions={
           <ActionPanel>
             {state.stage !== "waiting-auth" ? (
-              <Action
-                title="Sign in to Plex"
-                icon={Icon.Person}
-                onAction={() => void startSignIn()}
-              />
+              <Action title="Sign in to Plex" icon={Icon.Person} onAction={() => void startSignIn()} />
             ) : (
               <Action
                 title="Sign in to Plex"
@@ -528,16 +471,8 @@ export function PlexSetupView(props: PlexSetupViewProps) {
                 onAction={() => authPin && void open(authPin.authUrl)}
               />
             )}
-            <Action
-              title="Refresh Setup"
-              icon={Icon.ArrowClockwise}
-              onAction={() => void reload()}
-            />
-            <Action
-              title="Reset Saved Setup"
-              icon={Icon.Trash}
-              onAction={() => void resetSetup()}
-            />
+            <Action title="Refresh Setup" icon={Icon.ArrowClockwise} onAction={() => void reload()} />
+            <Action title="Reset Saved Setup" icon={Icon.Trash} onAction={() => void resetSetup()} />
             <PreferencesAction />
           </ActionPanel>
         }

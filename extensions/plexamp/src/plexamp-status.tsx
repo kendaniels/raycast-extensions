@@ -1,14 +1,4 @@
-import {
-  Action,
-  ActionPanel,
-  Color,
-  Detail,
-  Icon,
-  List,
-  Toast,
-  showToast,
-  useNavigation,
-} from "@raycast/api";
+import { Action, ActionPanel, Color, Detail, Icon, List, Toast, showToast, useNavigation } from "@raycast/api";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
@@ -23,13 +13,7 @@ import {
 } from "./plex";
 import { PreferencesAction } from "./shared-ui";
 import { PlexSetupView } from "./plex-setup-view";
-import type {
-  LibrarySection,
-  LibraryStats,
-  MetadataItem,
-  PlexampClientInfo,
-  TimelineInfo,
-} from "./types";
+import type { LibrarySection, LibraryStats, MetadataItem, PlexampClientInfo, TimelineInfo } from "./types";
 
 interface StatusState {
   client?: PlexampClientInfo;
@@ -43,8 +27,7 @@ interface StatusState {
 const numberFormatter = new Intl.NumberFormat();
 
 function row(label: string, value?: string | number): string {
-  const formattedValue =
-    typeof value === "number" ? numberFormatter.format(value) : value;
+  const formattedValue = typeof value === "number" ? numberFormatter.format(value) : value;
 
   return `| ${label} | ${formattedValue ?? "-"} |`;
 }
@@ -79,10 +62,7 @@ function LibraryPicker(props: {
   );
 
   return (
-    <List
-      navigationTitle="Select Library"
-      searchBarPlaceholder="Choose a Plex music library"
-    >
+    <List navigationTitle="Select Library" searchBarPlaceholder="Choose a Plex music library">
       {props.libraries.map((library) => (
         <List.Item
           key={library.key}
@@ -92,17 +72,11 @@ function LibraryPicker(props: {
             ...(library.key === props.selectedLibraryKey
               ? [{ icon: { source: Icon.CheckCircle, tintColor: Color.Green } }]
               : []),
-            ...(library.totalSize !== undefined
-              ? [{ text: `${library.totalSize} artists` }]
-              : []),
+            ...(library.totalSize !== undefined ? [{ text: `${library.totalSize} artists` }] : []),
           ]}
           actions={
             <ActionPanel>
-              <Action
-                title="Use This Library"
-                icon={Icon.CheckCircle}
-                onAction={() => void selectLibrary(library)}
-              />
+              <Action title="Use This Library" icon={Icon.CheckCircle} onAction={() => void selectLibrary(library)} />
             </ActionPanel>
           }
         />
@@ -127,12 +101,8 @@ export default function Command() {
         getSelectedLibrary(),
         getTimeline(),
       ]);
-      const libraryStats = selectedLibrary
-        ? await getLibraryStats(selectedLibrary.key)
-        : undefined;
-      const current = timeline.key
-        ? await getMetadataByKey(timeline.key)
-        : undefined;
+      const libraryStats = selectedLibrary ? await getLibraryStats(selectedLibrary.key) : undefined;
+      const current = timeline.key ? await getMetadataByKey(timeline.key) : undefined;
 
       setState({
         client,
@@ -143,9 +113,7 @@ export default function Command() {
         current,
       });
     } catch (loadError) {
-      setError(
-        loadError instanceof Error ? loadError.message : String(loadError),
-      );
+      setError(loadError instanceof Error ? loadError.message : String(loadError));
     } finally {
       setIsLoading(false);
     }
@@ -169,10 +137,7 @@ export default function Command() {
     } catch (signOutError) {
       toast.style = Toast.Style.Failure;
       toast.title = "Could not sign out from Plex";
-      toast.message =
-        signOutError instanceof Error
-          ? signOutError.message
-          : String(signOutError);
+      toast.message = signOutError instanceof Error ? signOutError.message : String(signOutError);
     }
   }, [reload]);
 
@@ -193,12 +158,7 @@ export default function Command() {
       row("Name", state.client?.name),
       row("Product", state.client?.product),
       row("Version", state.client?.version),
-      row(
-        "Platform",
-        [state.client?.platform, state.client?.platformVersion]
-          .filter(Boolean)
-          .join(" "),
-      ),
+      row("Platform", [state.client?.platform, state.client?.platformVersion].filter(Boolean).join(" ")),
       row("Device", state.client?.deviceName),
       row("Address", state.client?.address),
       row("Port", state.client?.port),
@@ -211,12 +171,7 @@ export default function Command() {
       "| --- | --- |",
       row("State", state.timeline?.state),
       row("Current Item", currentItem),
-      row(
-        "Volume",
-        state.timeline?.volume !== undefined
-          ? `${state.timeline.volume}%`
-          : undefined,
-      ),
+      row("Volume", state.timeline?.volume !== undefined ? `${state.timeline.volume}%` : undefined),
       row("Repeat", state.timeline?.repeat),
       row("Shuffle", state.timeline?.shuffle),
       row("Play Queue ID", state.timeline?.playQueueID),
@@ -233,13 +188,7 @@ export default function Command() {
   }, [state]);
 
   if (error || !state.selectedLibrary) {
-    return (
-      <PlexSetupView
-        navigationTitle="Plexamp Status"
-        problem={error}
-        onConfigured={() => void reload()}
-      />
-    );
+    return <PlexSetupView navigationTitle="Plexamp Status" problem={error} onConfigured={() => void reload()} />;
   }
 
   return (
@@ -248,21 +197,9 @@ export default function Command() {
       markdown={markdown}
       metadata={
         <Detail.Metadata>
-          <Detail.Metadata.Label
-            title="Client"
-            text={state.client?.name ?? "-"}
-            icon={Icon.Monitor}
-          />
-          <Detail.Metadata.Label
-            title="Playback"
-            text={state.timeline?.state ?? "-"}
-            icon={Icon.Play}
-          />
-          <Detail.Metadata.Label
-            title="Library"
-            text={state.selectedLibrary?.title ?? "-"}
-            icon={Icon.Music}
-          />
+          <Detail.Metadata.Label title="Client" text={state.client?.name ?? "-"} icon={Icon.Monitor} />
+          <Detail.Metadata.Label title="Playback" text={state.timeline?.state ?? "-"} icon={Icon.Play} />
+          <Detail.Metadata.Label title="Library" text={state.selectedLibrary?.title ?? "-"} icon={Icon.Music} />
           <Detail.Metadata.Separator />
           <Detail.Metadata.TagList title="Stats">
             {state.libraryStats?.artists !== undefined ? (
@@ -288,11 +225,7 @@ export default function Command() {
       }
       actions={
         <ActionPanel>
-          <Action
-            title="Reload Status"
-            icon={Icon.ArrowClockwise}
-            onAction={() => void reload()}
-          />
+          <Action title="Reload Status" icon={Icon.ArrowClockwise} onAction={() => void reload()} />
           <Action.Push
             title="Select Library"
             icon={Icon.Music}
@@ -304,11 +237,7 @@ export default function Command() {
               />
             }
           />
-          <Action
-            title="Sign out of Plex"
-            icon={Icon.XMarkCircle}
-            onAction={() => void signOut()}
-          />
+          <Action title="Sign out of Plex" icon={Icon.XMarkCircle} onAction={() => void signOut()} />
           <PreferencesAction />
         </ActionPanel>
       }

@@ -1,20 +1,13 @@
 import { useCallback } from "react";
 
-import {
-  getMusicSections,
-  getPlexSetupStatus,
-  resolveSelectedLibrary,
-} from "./plex";
+import { getMusicSections, getPlexSetupStatus, resolveSelectedLibrary } from "./plex";
 import { useAsyncValue } from "./use-async-value";
 import type { LibrarySection } from "./types";
 
 export function useLibrarySelection() {
   const loadState = useAsyncValue(
     useCallback(async () => {
-      const [libraries, setupStatus] = await Promise.all([
-        getMusicSections(),
-        getPlexSetupStatus(),
-      ]);
+      const [libraries, setupStatus] = await Promise.all([getMusicSections(), getPlexSetupStatus()]);
       const selectedLibrary = await resolveSelectedLibrary(libraries);
 
       return {

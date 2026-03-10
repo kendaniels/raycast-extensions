@@ -6,11 +6,7 @@ interface AsyncValueState<T> {
   error?: string;
 }
 
-export function useAsyncValue<T>(
-  loader: () => Promise<T>,
-  dependencyKey: string,
-  initialValue: T,
-) {
+export function useAsyncValue<T>(loader: () => Promise<T>, dependencyKey: string, initialValue: T) {
   const [state, setState] = useState<AsyncValueState<T>>({
     isLoading: true,
     value: initialValue,

@@ -29,11 +29,7 @@ export function artworkSource(
 
 export function PreferencesAction(props?: { title?: string }) {
   return (
-    <Action
-      title={props?.title ?? "Open Extension Settings"}
-      icon={Icon.Gear}
-      onAction={openExtensionPreferences}
-    />
+    <Action title={props?.title ?? "Open Extension Settings"} icon={Icon.Gear} onAction={openExtensionPreferences} />
   );
 }
 
@@ -68,9 +64,7 @@ export function librarySetupDescription(problem?: string) {
   return `${problem}\n\n${details.join("\n")}`;
 }
 
-export function albumAccessories(
-  album: Pick<MusicAlbum, "year" | "leafCount" | "duration">,
-): List.Item.Accessory[] {
+export function albumAccessories(album: Pick<MusicAlbum, "year" | "leafCount" | "duration">): List.Item.Accessory[] {
   return [
     ...(album.year
       ? [
@@ -151,16 +145,8 @@ export function PlaybackActionItems(props: {
           onAction={() => push(props.browseTarget)}
         />
       ) : null}
-      <Action
-        title="Play in Plexamp"
-        icon={Icon.Play}
-        onAction={() => props.onPlay(props.item)}
-      />
-      <Action
-        title="Add to Queue"
-        icon={Icon.Plus}
-        onAction={() => props.onQueue(props.item)}
-      />
+      <Action title="Play in Plexamp" icon={Icon.Play} onAction={() => props.onPlay(props.item)} />
+      <Action title="Add to Queue" icon={Icon.Plus} onAction={() => props.onQueue(props.item)} />
       <Action
         title="Play Next"
         icon={Icon.Forward}
@@ -176,36 +162,30 @@ export function PlaybackActionItems(props: {
 export function usePlaybackActions() {
   const [isPerforming, setIsPerforming] = useState(false);
 
-  const runAction = useCallback(
-    async (action: () => Promise<void>, successTitle: string) => {
-      setIsPerforming(true);
-      const toast = await showToast({
-        style: Toast.Style.Animated,
-        title: "Contacting Plexamp...",
-      });
+  const runAction = useCallback(async (action: () => Promise<void>, successTitle: string) => {
+    setIsPerforming(true);
+    const toast = await showToast({
+      style: Toast.Style.Animated,
+      title: "Contacting Plexamp...",
+    });
 
-      try {
-        await action();
-        toast.style = Toast.Style.Success;
-        toast.title = successTitle;
-      } catch (error) {
-        toast.style = Toast.Style.Failure;
-        toast.title = "Plexamp request failed";
-        toast.message = error instanceof Error ? error.message : String(error);
-      } finally {
-        setIsPerforming(false);
-      }
-    },
-    [],
-  );
+    try {
+      await action();
+      toast.style = Toast.Style.Success;
+      toast.title = successTitle;
+    } catch (error) {
+      toast.style = Toast.Style.Failure;
+      toast.title = "Plexamp request failed";
+      toast.message = error instanceof Error ? error.message : String(error);
+    } finally {
+      setIsPerforming(false);
+    }
+  }, []);
 
   return {
     isPerforming,
-    play: (item: PlayableItem) =>
-      runAction(() => playItem(item), "Playback started in Plexamp"),
-    playNext: (item: PlayableItem) =>
-      runAction(() => playNextItem(item), "Item added to play next"),
-    queue: (item: PlayableItem) =>
-      runAction(() => queueItem(item), "Item added to the Plexamp queue"),
+    play: (item: PlayableItem) => runAction(() => playItem(item), "Playback started in Plexamp"),
+    playNext: (item: PlayableItem) => runAction(() => playNextItem(item), "Item added to play next"),
+    queue: (item: PlayableItem) => runAction(() => queueItem(item), "Item added to the Plexamp queue"),
   };
 }

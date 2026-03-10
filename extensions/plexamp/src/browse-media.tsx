@@ -22,13 +22,7 @@ import {
 import { PlexSetupView } from "./plex-setup-view";
 import { useAsyncValue } from "./use-async-value";
 import { useLibrarySelection } from "./use-library-selection";
-import type {
-  AudioPlaylist,
-  MusicAlbum,
-  MusicArtist,
-  MusicTrack,
-  PlayableItem,
-} from "./types";
+import type { AudioPlaylist, MusicAlbum, MusicArtist, MusicTrack, PlayableItem } from "./types";
 
 interface BrowseLaunchContext {
   target?: "album" | "artist";
@@ -36,17 +30,12 @@ interface BrowseLaunchContext {
   sectionKey?: string;
 }
 
-function getBrowseNavigationTitle(
-  libraryName: string,
-  serverName?: string,
-): string {
+function getBrowseNavigationTitle(libraryName: string, serverName?: string): string {
   return `Browse: ${libraryName} on ${serverName ?? "Plex Media Server"}`;
 }
 
 function normalizeReleaseType(album: MusicAlbum): string {
-  const value = `${album.releaseType ?? ""} ${album.releaseSubType ?? ""}`
-    .toLowerCase()
-    .trim();
+  const value = `${album.releaseType ?? ""} ${album.releaseSubType ?? ""}`.toLowerCase().trim();
 
   if (value.includes("compilation")) {
     return "Compilations";
@@ -75,9 +64,7 @@ function normalizeReleaseType(album: MusicAlbum): string {
   return "Albums";
 }
 
-function groupAlbumsByReleaseType(
-  albums: MusicAlbum[],
-): [string, MusicAlbum[]][] {
+function groupAlbumsByReleaseType(albums: MusicAlbum[]): [string, MusicAlbum[]][] {
   const sections = new Map<string, MusicAlbum[]>();
 
   for (const album of albums) {
@@ -87,15 +74,7 @@ function groupAlbumsByReleaseType(
     sections.set(section, items);
   }
 
-  const order = [
-    "Albums",
-    "Singles & EPs",
-    "Live",
-    "Compilations",
-    "Soundtracks",
-    "Remixes",
-    "Demos",
-  ];
+  const order = ["Albums", "Singles & EPs", "Live", "Compilations", "Soundtracks", "Remixes", "Demos"];
 
   return [...sections.entries()]
     .map(
@@ -171,29 +150,19 @@ function AlbumRow(props: {
 function RootContent() {
   const libraries = useLibrarySelection();
   const artists = useAsyncValue(
-    () =>
-      libraries.selectedLibrary
-        ? getArtists(libraries.selectedLibrary.key)
-        : Promise.resolve([]),
+    () => (libraries.selectedLibrary ? getArtists(libraries.selectedLibrary.key) : Promise.resolve([])),
     libraries.selectedLibrary?.key ?? "no-library",
     [] as MusicArtist[],
   );
   const playlists = useAsyncValue(
-    () =>
-      libraries.selectedLibrary
-        ? getAudioPlaylists(libraries.selectedLibrary.key)
-        : Promise.resolve([]),
+    () => (libraries.selectedLibrary ? getAudioPlaylists(libraries.selectedLibrary.key) : Promise.resolve([])),
     `playlists-${libraries.selectedLibrary?.key ?? "no-library"}`,
     [] as AudioPlaylist[],
   );
   const playback = usePlaybackActions();
   const { push } = useNavigation();
 
-  const isLoading =
-    libraries.isLoading ||
-    artists.isLoading ||
-    playlists.isLoading ||
-    playback.isPerforming;
+  const isLoading = libraries.isLoading || artists.isLoading || playlists.isLoading || playback.isPerforming;
   const error = libraries.error ?? artists.error ?? playlists.error;
   const selectedLibrary = libraries.selectedLibrary;
 
@@ -216,10 +185,7 @@ function RootContent() {
   return (
     <List
       isLoading={isLoading}
-      navigationTitle={getBrowseNavigationTitle(
-        selectedLibrary.title,
-        libraries.selectedServerName,
-      )}
+      navigationTitle={getBrowseNavigationTitle(selectedLibrary.title, libraries.selectedServerName)}
       searchBarPlaceholder="Filter artists and playlists"
       actions={
         <ActionPanel>
@@ -234,19 +200,13 @@ function RootContent() {
             key={playlist.ratingKey}
             icon={artworkSource(playlist.thumb, Icon.List)}
             title={playlist.title}
-            accessories={
-              playlist.leafCount
-                ? [{ text: `${playlist.leafCount} tracks` }]
-                : []
-            }
+            accessories={playlist.leafCount ? [{ text: `${playlist.leafCount} tracks` }] : []}
             actions={
               <ActionPanel>
                 <Action
                   title="Browse Playlist"
                   icon={Icon.ArrowRight}
-                  onAction={() =>
-                    push(<PlaylistTrackList playlist={playlist} />)
-                  }
+                  onAction={() => push(<PlaylistTrackList playlist={playlist} />)}
                 />
                 <PlaybackActionItems
                   item={playlist}
@@ -297,14 +257,7 @@ function ArtistRow(props: {
           <Action
             title="Browse Artist"
             icon={Icon.ArrowRight}
-            onAction={() =>
-              push(
-                <AlbumList
-                  artist={props.artist}
-                  sectionKey={props.sectionKey}
-                />,
-              )
-            }
+            onAction={() => push(<AlbumList artist={props.artist} sectionKey={props.sectionKey} />)}
           />
           <PlaybackActionItems
             item={props.artist}
@@ -371,11 +324,7 @@ export function AlbumList(props: { artist: MusicArtist; sectionKey: string }) {
 }
 
 export function AlbumTrackList(props: { album: MusicAlbum }) {
-  const tracks = useAsyncValue(
-    () => getTracksForAlbum(props.album),
-    props.album.ratingKey,
-    [] as MusicTrack[],
-  );
+  const tracks = useAsyncValue(() => getTracksForAlbum(props.album), props.album.ratingKey, [] as MusicTrack[]);
   const playback = usePlaybackActions();
 
   return (
@@ -461,9 +410,7 @@ function TrackList(props: {
             userRating: track.userRating,
             displayMode: ratingDisplayMode,
           })}
-          subtitle={[track.grandparentTitle, track.parentTitle]
-            .filter(Boolean)
-            .join(" - ")}
+          subtitle={[track.grandparentTitle, track.parentTitle].filter(Boolean).join(" - ")}
           accessories={trackAccessories(track)}
           actions={
             <ActionPanel>
@@ -572,9 +519,7 @@ function LaunchArtistView(props: { ratingKey: string; sectionKey: string }) {
   );
 }
 
-export default function Command(
-  props: LaunchProps<{ launchContext?: BrowseLaunchContext }>,
-) {
+export default function Command(props: LaunchProps<{ launchContext?: BrowseLaunchContext }>) {
   const context = props.launchContext;
 
   if (context?.target === "album" && context.ratingKey) {
@@ -582,12 +527,7 @@ export default function Command(
   }
 
   if (context?.target === "artist" && context.ratingKey && context.sectionKey) {
-    return (
-      <LaunchArtistView
-        ratingKey={context.ratingKey}
-        sectionKey={context.sectionKey}
-      />
-    );
+    return <LaunchArtistView ratingKey={context.ratingKey} sectionKey={context.sectionKey} />;
   }
 
   return <RootContent />;

@@ -1,13 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 
-import type {
-  AudioPlaylist,
-  MetadataItem,
-  MusicAlbum,
-  MusicArtist,
-  MusicTrack,
-  PlayQueueInfo,
-} from "./types";
+import type { AudioPlaylist, MetadataItem, MusicAlbum, MusicArtist, MusicTrack, PlayQueueInfo } from "./types";
 
 export type XmlNode = Record<string, unknown>;
 
@@ -27,52 +20,49 @@ export function arrayify<T>(value: T | T[] | undefined): T[] {
 }
 
 function decodeXmlEntities(value: string): string {
-  return value.replace(
-    /&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos|nbsp);/gi,
-    (entity, token: string) => {
-      const normalizedToken = token.toLowerCase();
+  return value.replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos|nbsp);/gi, (entity, token: string) => {
+    const normalizedToken = token.toLowerCase();
 
-      if (normalizedToken === "amp") {
-        return "&";
-      }
+    if (normalizedToken === "amp") {
+      return "&";
+    }
 
-      if (normalizedToken === "lt") {
-        return "<";
-      }
+    if (normalizedToken === "lt") {
+      return "<";
+    }
 
-      if (normalizedToken === "gt") {
-        return ">";
-      }
+    if (normalizedToken === "gt") {
+      return ">";
+    }
 
-      if (normalizedToken === "quot") {
-        return '"';
-      }
+    if (normalizedToken === "quot") {
+      return '"';
+    }
 
-      if (normalizedToken === "apos") {
-        return "'";
-      }
+    if (normalizedToken === "apos") {
+      return "'";
+    }
 
-      if (normalizedToken === "nbsp") {
-        return "\u00a0";
-      }
+    if (normalizedToken === "nbsp") {
+      return "\u00a0";
+    }
 
-      const codePoint = normalizedToken.startsWith("#x")
-        ? Number.parseInt(normalizedToken.slice(2), 16)
-        : normalizedToken.startsWith("#")
-          ? Number.parseInt(normalizedToken.slice(1), 10)
-          : Number.NaN;
+    const codePoint = normalizedToken.startsWith("#x")
+      ? Number.parseInt(normalizedToken.slice(2), 16)
+      : normalizedToken.startsWith("#")
+        ? Number.parseInt(normalizedToken.slice(1), 10)
+        : Number.NaN;
 
-      if (!Number.isFinite(codePoint)) {
-        return entity;
-      }
+    if (!Number.isFinite(codePoint)) {
+      return entity;
+    }
 
-      try {
-        return String.fromCodePoint(codePoint);
-      } catch {
-        return entity;
-      }
-    },
-  );
+    try {
+      return String.fromCodePoint(codePoint);
+    } catch {
+      return entity;
+    }
+  });
 }
 
 export function asString(value: unknown): string | undefined {
@@ -113,10 +103,7 @@ export function buildMetadataKey(ratingKey: string): string {
 
 function getArtworkPath(item: XmlNode): string | undefined {
   return (
-    asString(item.thumb) ??
-    asString(item.parentThumb) ??
-    asString(item.grandparentThumb) ??
-    asString(item.composite)
+    asString(item.thumb) ?? asString(item.parentThumb) ?? asString(item.grandparentThumb) ?? asString(item.composite)
   );
 }
 
@@ -140,14 +127,10 @@ function getPrimaryPartNode(item: XmlNode): XmlNode | undefined {
 }
 
 function firstObject(values: unknown): XmlNode | undefined {
-  return arrayify(values).find(
-    (node): node is XmlNode => typeof node === "object",
-  );
+  return arrayify(values).find((node): node is XmlNode => typeof node === "object");
 }
 
-export function deduplicateByRatingKey<T extends { ratingKey: string }>(
-  items: T[],
-): T[] {
+export function deduplicateByRatingKey<T extends { ratingKey: string }>(items: T[]): T[] {
   const seen = new Set<string>();
 
   return items.filter((item) => {
@@ -209,10 +192,7 @@ export function parseAlbum(node: XmlNode): MusicAlbum {
       getFirstNestedTag(node, "Format") ??
       asString(node.format) ??
       asString(node.albumType),
-    releaseSubType:
-      getFirstNestedTag(node, "Format") ??
-      asString(node.format) ??
-      asString(node.albumType),
+    releaseSubType: getFirstNestedTag(node, "Format") ?? asString(node.format) ?? asString(node.albumType),
     thumb: getArtworkPath(node),
   };
 }
@@ -228,9 +208,7 @@ export function normalizeLibrarySectionKey(value?: string): string | undefined {
 }
 
 function getLibrarySectionKey(node: XmlNode): string | undefined {
-  const explicitKey = normalizeLibrarySectionKey(
-    asString(node.librarySectionKey),
-  );
+  const explicitKey = normalizeLibrarySectionKey(asString(node.librarySectionKey));
 
   if (explicitKey) {
     return explicitKey;
@@ -266,10 +244,7 @@ export function parseTrack(node: XmlNode): MusicTrack {
       asString(node.container) ??
       getFirstNestedTag(node, "Format") ??
       asString(node.format),
-    bitrate:
-      asNumber(mediaNode?.bitrate) ??
-      asNumber(partNode?.bitrate) ??
-      asNumber(node.bitrate),
+    bitrate: asNumber(mediaNode?.bitrate) ?? asNumber(partNode?.bitrate) ?? asNumber(node.bitrate),
     duration: asNumber(node.duration),
     index: asNumber(node.index),
     parentIndex: asNumber(node.parentIndex),
@@ -293,9 +268,7 @@ export function parsePlaylist(node: XmlNode): AudioPlaylist {
   };
 }
 
-export function parseMetadataItem(
-  container: XmlNode,
-): MetadataItem | undefined {
+export function parseMetadataItem(container: XmlNode): MetadataItem | undefined {
   const metadata = arrayify(container.Metadata)[0];
   if (metadata && typeof metadata === "object") {
     const type = asString((metadata as XmlNode).type);
@@ -370,8 +343,7 @@ export function parsePlayQueue(container: XmlNode): PlayQueueInfo {
     .filter((track): track is XmlNode => typeof track === "object")
     .map(parseTrack);
   const selectedItemID = asString(container.playQueueSelectedItemID);
-  const selectedItem =
-    items.find((item) => item.playQueueItemID === selectedItemID) ?? items[0];
+  const selectedItem = items.find((item) => item.playQueueItemID === selectedItemID) ?? items[0];
 
   return {
     id: requiredString(container.playQueueID, "playQueueID"),

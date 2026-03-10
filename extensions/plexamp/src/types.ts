@@ -152,13 +152,5 @@ export interface PlexSetupStatus {
   selectedLibrary?: string;
 }
 
-export type PlayableItem =
-  | MusicArtist
-  | MusicAlbum
-  | MusicTrack
-  | AudioPlaylist;
-export type MetadataItem =
-  | MusicArtist
-  | MusicAlbum
-  | MusicTrack
-  | AudioPlaylist;
+export type PlayableItem = MusicArtist | MusicAlbum | MusicTrack | AudioPlaylist;
+export type MetadataItem = MusicArtist | MusicAlbum | MusicTrack | AudioPlaylist;

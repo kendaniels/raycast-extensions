@@ -1,10 +1,6 @@
 import { LocalStorage, getPreferenceValues } from "@raycast/api";
 
-import type {
-  LibrarySection,
-  PlexServerResource,
-  PlexSetupStatus,
-} from "./types";
+import type { LibrarySection, PlexServerResource, PlexSetupStatus } from "./types";
 
 interface PreferenceOverrides {
   plexampUrl?: string;
@@ -81,21 +77,15 @@ async function getManagedConfig(): Promise<ManagedConfig> {
 
   if (!cachedManagedConfigPromise) {
     cachedManagedConfigPromise = (async () => {
-      const [
-        plexToken,
-        plexServerUrl,
-        plexServerToken,
-        serverMachineIdentifier,
-        serverName,
-        musicLibrary,
-      ] = await Promise.all([
-        LocalStorage.getItem<string>(MANAGED_TOKEN_KEY),
-        LocalStorage.getItem<string>(MANAGED_SERVER_URL_KEY),
-        LocalStorage.getItem<string>(MANAGED_SERVER_TOKEN_KEY),
-        LocalStorage.getItem<string>(MANAGED_SERVER_ID_KEY),
-        LocalStorage.getItem<string>(MANAGED_SERVER_NAME_KEY),
-        LocalStorage.getItem<string>(MANAGED_LIBRARY_KEY),
-      ]);
+      const [plexToken, plexServerUrl, plexServerToken, serverMachineIdentifier, serverName, musicLibrary] =
+        await Promise.all([
+          LocalStorage.getItem<string>(MANAGED_TOKEN_KEY),
+          LocalStorage.getItem<string>(MANAGED_SERVER_URL_KEY),
+          LocalStorage.getItem<string>(MANAGED_SERVER_TOKEN_KEY),
+          LocalStorage.getItem<string>(MANAGED_SERVER_ID_KEY),
+          LocalStorage.getItem<string>(MANAGED_SERVER_NAME_KEY),
+          LocalStorage.getItem<string>(MANAGED_LIBRARY_KEY),
+        ]);
 
       return {
         plexToken: plexToken || undefined,
@@ -112,10 +102,7 @@ async function getManagedConfig(): Promise<ManagedConfig> {
   return cachedManagedConfig;
 }
 
-function buildResolvedConfig(
-  overrides: PreferenceOverrides,
-  managed: ManagedConfig,
-): ResolvedConfig {
+function buildResolvedConfig(overrides: PreferenceOverrides, managed: ManagedConfig): ResolvedConfig {
   const plexToken = managed.plexToken ?? "";
   const plexServerUrl = managed.plexServerUrl ?? "";
 
@@ -131,10 +118,7 @@ function buildResolvedConfig(
 }
 
 export async function getConfig(): Promise<ResolvedConfig> {
-  return buildResolvedConfig(
-    getPreferenceOverrides(),
-    await getManagedConfig(),
-  );
+  return buildResolvedConfig(getPreferenceOverrides(), await getManagedConfig());
 }
 
 export function getConfiguredPlexampUrl(): string {
@@ -189,11 +173,8 @@ export async function clearManagedConfiguration(): Promise<void> {
   invalidateCachedConfig();
 }
 
-export async function saveSelectedServer(
-  server: PlexServerResource,
-): Promise<void> {
-  const preferredConnection =
-    server.preferredConnection ?? server.connections[0];
+export async function saveSelectedServer(server: PlexServerResource): Promise<void> {
+  const preferredConnection = server.preferredConnection ?? server.connections[0];
 
   if (!preferredConnection) {
     throw new Error(`No usable connection was found for ${server.name}.`);
@@ -211,9 +192,7 @@ export async function saveSelectedServer(
   invalidateCachedConfig();
 }
 
-export async function saveSelectedLibrary(
-  library: LibrarySection,
-): Promise<void> {
+export async function saveSelectedLibrary(library: LibrarySection): Promise<void> {
   await LocalStorage.setItem(MANAGED_LIBRARY_KEY, library.key);
   invalidateCachedConfig();
 }
@@ -232,10 +211,7 @@ export async function getPlexSetupStatus(): Promise<PlexSetupStatus> {
   };
 }
 
-export function getImageUrl(
-  path?: string,
-  options?: { baseUrl?: string; token?: string },
-): string | undefined {
+export function getImageUrl(path?: string, options?: { baseUrl?: string; token?: string }): string | undefined {
   if (!path) {
     return undefined;
   }
@@ -245,8 +221,7 @@ export function getImageUrl(
     options?.token ??
     (options?.baseUrl
       ? cachedManagedConfig?.plexToken
-      : (cachedManagedConfig?.plexServerToken ??
-        cachedManagedConfig?.plexToken));
+      : (cachedManagedConfig?.plexServerToken ?? cachedManagedConfig?.plexToken));
 
   if (!baseUrl || !token) {
     return undefined;

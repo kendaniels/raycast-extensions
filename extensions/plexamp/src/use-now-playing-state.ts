@@ -1,11 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-import {
-  getMetadataByKeyForTimeline,
-  getMetadataByRatingKey,
-  getPlayQueueForTimeline,
-  getTimeline,
-} from "./plex";
+import { getMetadataByKeyForTimeline, getMetadataByRatingKey, getPlayQueueForTimeline, getTimeline } from "./plex";
 import type {
   AudioPlaylist,
   MetadataItem,
@@ -82,10 +77,7 @@ function areTracksEqual(left?: MusicTrack, right?: MusicTrack): boolean {
   );
 }
 
-function arePlaylistsEqual(
-  left?: AudioPlaylist,
-  right?: AudioPlaylist,
-): boolean {
+function arePlaylistsEqual(left?: AudioPlaylist, right?: AudioPlaylist): boolean {
   if (!left || !right) {
     return left === right;
   }
@@ -101,10 +93,7 @@ function arePlaylistsEqual(
   );
 }
 
-function areMetadataItemsEqual(
-  left?: MetadataItem,
-  right?: MetadataItem,
-): boolean {
+function areMetadataItemsEqual(left?: MetadataItem, right?: MetadataItem): boolean {
   if (!left || !right) {
     return left === right;
   }
@@ -144,10 +133,7 @@ function areTimelinesEqual(left: TimelineInfo, right: TimelineInfo): boolean {
   );
 }
 
-function arePlayQueuesEqual(
-  left?: PlayQueueInfo,
-  right?: PlayQueueInfo,
-): boolean {
+function arePlayQueuesEqual(left?: PlayQueueInfo, right?: PlayQueueInfo): boolean {
   if (!left || !right) {
     return left === right;
   }
@@ -162,10 +148,7 @@ function arePlayQueuesEqual(
   );
 }
 
-function areNowPlayingStatesEqual(
-  left: NowPlayingControlsState,
-  right: NowPlayingControlsState,
-): boolean {
+function areNowPlayingStatesEqual(left: NowPlayingControlsState, right: NowPlayingControlsState): boolean {
   return (
     areTimelinesEqual(left.timeline, right.timeline) &&
     arePlayQueuesEqual(left.queue, right.queue) &&
@@ -186,15 +169,11 @@ async function loadNowPlayingState(): Promise<{
     try {
       queue = await getPlayQueueForTimeline(timeline);
     } catch (queueError) {
-      warnings.push(
-        queueError instanceof Error ? queueError.message : String(queueError),
-      );
+      warnings.push(queueError instanceof Error ? queueError.message : String(queueError));
     }
   }
 
-  const currentFromQueue = queue?.items.find(
-    (item) => item.playQueueItemID === timeline.playQueueItemID,
-  );
+  const currentFromQueue = queue?.items.find((item) => item.playQueueItemID === timeline.playQueueItemID);
 
   if (currentFromQueue) {
     current = currentFromQueue;
@@ -204,11 +183,7 @@ async function loadNowPlayingState(): Promise<{
     try {
       current = await getMetadataByKeyForTimeline(timeline, timeline.key);
     } catch (metadataError) {
-      warnings.push(
-        metadataError instanceof Error
-          ? metadataError.message
-          : String(metadataError),
-      );
+      warnings.push(metadataError instanceof Error ? metadataError.message : String(metadataError));
     }
   }
 
@@ -216,11 +191,7 @@ async function loadNowPlayingState(): Promise<{
     try {
       current = await getMetadataByRatingKey(timeline.ratingKey);
     } catch (metadataError) {
-      warnings.push(
-        metadataError instanceof Error
-          ? metadataError.message
-          : String(metadataError),
-      );
+      warnings.push(metadataError instanceof Error ? metadataError.message : String(metadataError));
     }
   }
 
@@ -248,21 +219,12 @@ export function useNowPlayingState(enabled: boolean) {
     try {
       const { nextState, warning } = await loadNowPlayingState();
 
-      setState((currentState) =>
-        areNowPlayingStatesEqual(currentState, nextState)
-          ? currentState
-          : nextState,
-      );
-      setError((currentError) =>
-        currentError === warning ? currentError : warning,
-      );
+      setState((currentState) => (areNowPlayingStatesEqual(currentState, nextState) ? currentState : nextState));
+      setError((currentError) => (currentError === warning ? currentError : warning));
     } catch (loadError) {
-      const nextError =
-        loadError instanceof Error ? loadError.message : String(loadError);
+      const nextError = loadError instanceof Error ? loadError.message : String(loadError);
 
-      setError((currentError) =>
-        currentError === nextError ? currentError : nextError,
-      );
+      setError((currentError) => (currentError === nextError ? currentError : nextError));
       setState((currentState) =>
         currentState.timeline.state === "error"
           ? currentState

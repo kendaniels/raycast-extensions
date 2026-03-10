@@ -17,14 +17,7 @@ import {
 import { useAsyncValue } from "./use-async-value";
 import { PlexSetupView } from "./plex-setup-view";
 import { useLibrarySelection } from "./use-library-selection";
-import type {
-  AudioPlaylist,
-  MusicAlbum,
-  MusicArtist,
-  MusicTrack,
-  PlayableItem,
-  SearchResults,
-} from "./types";
+import type { AudioPlaylist, MusicAlbum, MusicArtist, MusicTrack, PlayableItem, SearchResults } from "./types";
 
 interface SearchState {
   isLoading: boolean;
@@ -32,10 +25,7 @@ interface SearchState {
   error?: string;
 }
 
-function getSearchNavigationTitle(
-  libraryName: string,
-  serverName?: string,
-): string {
+function getSearchNavigationTitle(libraryName: string, serverName?: string): string {
   return `Search: ${libraryName} on ${serverName ?? "Plex Media Server"}`;
 }
 
@@ -114,12 +104,7 @@ function SearchResultsList(props: {
                   <PlaybackActionItems
                     item={artist}
                     browseTitle="Browse Artist"
-                    browseTarget={
-                      <AlbumList
-                        artist={artist}
-                        sectionKey={props.sectionKey}
-                      />
-                    }
+                    browseTarget={<AlbumList artist={artist} sectionKey={props.sectionKey} />}
                     onPlay={props.onPlay}
                     onPlayNext={props.onPlayNext}
                     onQueue={props.onQueue}
@@ -173,9 +158,7 @@ function SearchResultsList(props: {
                     userRating: track.userRating,
                     displayMode: ratingDisplayMode,
                   })}
-                  subtitle={[track.grandparentTitle, track.parentTitle]
-                    .filter(Boolean)
-                    .join(" - ")}
+                  subtitle={[track.grandparentTitle, track.parentTitle].filter(Boolean).join(" - ")}
                   accessories={trackAccessories(track)}
                   actions={
                     <ActionPanel>
@@ -202,11 +185,7 @@ function SearchResultsList(props: {
               key={`playlist-${playlist.ratingKey}`}
               icon={artworkSource(playlist.thumb, Icon.List)}
               title={playlist.title}
-              accessories={
-                playlist.leafCount
-                  ? [{ text: `${playlist.leafCount} tracks` }]
-                  : []
-              }
+              accessories={playlist.leafCount ? [{ text: `${playlist.leafCount} tracks` }] : []}
               actions={
                 <ActionPanel>
                   <PlaybackActionItems
@@ -245,9 +224,7 @@ export function SearchCommand() {
   );
   const state = useSearch(librarySelection.selectedLibrary?.key, query);
   const matchingPlaylists = playlists.value.filter((playlist) =>
-    playlist.title
-      .toLocaleLowerCase()
-      .includes(trimmedQuery.toLocaleLowerCase()),
+    playlist.title.toLocaleLowerCase().includes(trimmedQuery.toLocaleLowerCase()),
   );
   const hasResults =
     state.results.tracks.length > 0 ||
@@ -283,12 +260,7 @@ export function SearchCommand() {
 
   return (
     <List
-      isLoading={
-        librarySelection.isLoading ||
-        playlists.isLoading ||
-        playback.isPerforming ||
-        state.isLoading
-      }
+      isLoading={librarySelection.isLoading || playlists.isLoading || playback.isPerforming || state.isLoading}
       searchBarPlaceholder="Search songs, albums, artists, and playlists"
       onSearchTextChange={setQuery}
       searchText={query}
@@ -328,10 +300,7 @@ export function SearchCommand() {
           }
         />
       ) : null}
-      {!state.error &&
-      query.trim().length > 0 &&
-      !state.isLoading &&
-      !hasResults ? (
+      {!state.error && query.trim().length > 0 && !state.isLoading && !hasResults ? (
         <List.EmptyView
           icon={Icon.MagnifyingGlass}
           title="No results"

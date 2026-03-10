@@ -18,10 +18,7 @@ export function formatDuration(milliseconds?: number): string {
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
-export function formatTrackTitlePrefix(
-  parentIndex?: number,
-  index?: number,
-): string {
+export function formatTrackTitlePrefix(parentIndex?: number, index?: number): string {
   if (!index) {
     return "";
   }
@@ -67,12 +64,7 @@ export function formatNowPlayingMenuBarTitle(
 
   const tokens = {
     "{track}": item.type === "track" ? item.title : "",
-    "{album}":
-      item.type === "track"
-        ? (item.parentTitle ?? "")
-        : item.type === "album"
-          ? item.title
-          : "",
+    "{album}": item.type === "track" ? (item.parentTitle ?? "") : item.type === "album" ? item.title : "",
     "{artist}":
       item.type === "track"
         ? (item.grandparentTitle ?? "")
@@ -81,10 +73,7 @@ export function formatNowPlayingMenuBarTitle(
           : item.title,
   };
 
-  const rendered = Object.entries(tokens).reduce(
-    (result, [token, value]) => result.replaceAll(token, value),
-    format,
-  );
+  const rendered = Object.entries(tokens).reduce((result, [token, value]) => result.replaceAll(token, value), format);
 
   return rendered.trim() || "Nothing playing";
 }
@@ -139,9 +128,7 @@ export function formatTrackAudioFormat(format?: string): string | undefined {
     return undefined;
   }
 
-  return normalized === normalized.toLowerCase()
-    ? normalized.toUpperCase()
-    : normalized;
+  return normalized === normalized.toLowerCase() ? normalized.toUpperCase() : normalized;
 }
 
 export function formatTrackBitrate(bitrate?: number): string | undefined {
@@ -152,9 +139,7 @@ export function formatTrackBitrate(bitrate?: number): string | undefined {
   return `${Math.round(bitrate)}kbps`;
 }
 
-export function formatTrackMetadataBadge(
-  track: Pick<MusicTrack, "audioFormat" | "bitrate">,
-): string | undefined {
+export function formatTrackMetadataBadge(track: Pick<MusicTrack, "audioFormat" | "bitrate">): string | undefined {
   const formattedFormat = formatTrackAudioFormat(track.audioFormat);
   const formattedBitrate = formatTrackBitrate(track.bitrate);
 
