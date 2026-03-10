@@ -82,6 +82,10 @@ export default function InterpretLyricsView({
       return;
     }
 
+    if (!selectedPromptId) {
+      return;
+    }
+
     if (!prompts.some((prompt) => prompt.id === selectedPromptId)) {
       setSelectedPromptId(prompts[0]?.id || "");
     }
