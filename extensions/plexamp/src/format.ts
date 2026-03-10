@@ -32,15 +32,10 @@ export function formatTrackTitlePrefix(parentIndex?: number, index?: number): st
 
 export type TrackRatingDisplayMode = "fiveStars" | "fiveStarsHalf" | "oneStar";
 
-interface RatingPreferences {
-  trackRatings?: TrackRatingDisplayMode;
-  menuBarFormat?: string;
-}
-
 const DEFAULT_MENU_BAR_FORMAT = "{track} - {artist}";
 
 export function getTrackRatingDisplayMode(): TrackRatingDisplayMode {
-  const value = getPreferenceValues<RatingPreferences>().trackRatings;
+  const value = getPreferenceValues<Preferences>().trackRatings;
 
   if (value === "fiveStarsHalf" || value === "oneStar") {
     return value;
@@ -50,7 +45,7 @@ export function getTrackRatingDisplayMode(): TrackRatingDisplayMode {
 }
 
 export function getMenuBarFormat(): string {
-  const value = getPreferenceValues<RatingPreferences>().menuBarFormat?.trim();
+  const value = getPreferenceValues<Preferences>().menuBarFormat?.trim();
   return value || DEFAULT_MENU_BAR_FORMAT;
 }
 
