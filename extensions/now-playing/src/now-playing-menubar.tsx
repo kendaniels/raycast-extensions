@@ -1,4 +1,4 @@
-import { Cache, MenuBarExtra, getPreferenceValues, open } from "@raycast/api";
+import { Cache, Icon, MenuBarExtra, getPreferenceValues, open } from "@raycast/api";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { access, mkdir, readdir, stat, unlink, writeFile } from "node:fs/promises";
@@ -6,19 +6,25 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { useEffect, useRef, useState } from "react";
 import { inspectNowPlayingForLookup, readStringField } from "./media-control";
+import {
+  type MenuBarDisplayMode,
+  type MenuBarState,
+  menuTitle,
+  shouldShowMenuBarArtwork,
+} from "./now-playing-menubar-display";
 
-type NowPlayingState = {
-  track: string;
-  artist: string;
-  album: string;
-  artworkUrl: string;
-  status: "ok" | "no-track" | "missing-media-control" | "unsupported-platform" | "error";
+type NowPlayingState = MenuBarState & {
   error?: string;
+};
+
+type NowPlayingMenubarPreferences = {
+  menuBarDisplayMode?: MenuBarDisplayMode;
+  menuBarTitleTemplate?: string;
+  showAlbumArtwork?: boolean;
 };
 
 const menubarCache = new Cache({ namespace: "now-playing-menubar" });
 const LAST_STATE_CACHE_KEY = "last-state";
-const DEFAULT_TITLE_TEMPLATE = "{track} — {artist}";
 const ARTWORK_CACHE_DIR = join(tmpdir(), "raycast-now-playing-artwork");
 
 function normalizeArtworkUrl(value: string): string {
@@ -90,41 +96,6 @@ function writeCachedState(state: NowPlayingState) {
     return;
   }
   menubarCache.set(LAST_STATE_CACHE_KEY, JSON.stringify(state));
-}
-
-function normalizeTemplate(template?: string): string {
-  const trimmed = (template || "").trim();
-  return trimmed || DEFAULT_TITLE_TEMPLATE;
-}
-
-function menuTitle(state: NowPlayingState, template: string): string {
-  if (state.status === "missing-media-control") {
-    return "Install media-control";
-  }
-
-  if (state.status !== "ok" || !state.track) {
-    return "♫";
-  }
-
-  const values: Record<string, string> = {
-    track: state.track,
-    artist: state.artist,
-    album: state.album,
-  };
-
-  const rendered = template.replace(/\{(track|artist|album)\}/gi, (_, token: string) => {
-    return values[token.toLowerCase()] || "";
-  });
-
-  // Remove hanging separators when optional values are missing.
-  const cleaned = rendered
-    .replace(/\s+/g, " ")
-    .replace(/\s*([—–|:-])\s*/g, " $1 ")
-    .replace(/^[\s—–|:-]+|[\s—–|:-]+$/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  return cleaned || state.track;
 }
 
 function artworkFileExtension(mimeType: string): string {
@@ -239,8 +210,9 @@ async function readArtworkUrl(payload: unknown): Promise<string> {
 }
 
 export default function Command() {
-  const preferences = getPreferenceValues<Preferences.NowPlayingMenubar>();
-  const titleTemplate = normalizeTemplate(preferences.menuBarTitleTemplate);
+  const preferences = getPreferenceValues<NowPlayingMenubarPreferences>();
+  const displayMode = preferences.menuBarDisplayMode ?? "track-artist";
+  const titleTemplate = preferences.menuBarTitleTemplate;
   const showArtworkInMenuBar = preferences.showAlbumArtwork ?? true;
   const cachedState = readCachedState();
   const [hasInitialized, setHasInitialized] = useState(!!cachedState);
@@ -393,17 +365,23 @@ export default function Command() {
     void refreshNowPlaying();
   }, []);
 
+  const menuBarIcon =
+    state.status === "missing-media-control"
+      ? Icon.XMarkCircleFilled
+      : shouldShowMenuBarArtwork(displayMode, showArtworkInMenuBar) && state.artworkUrl
+        ? { source: state.artworkUrl }
+        : undefined;
+
   return (
     <MenuBarExtra
       isLoading={!hasInitialized}
-      title={menuTitle(state, titleTemplate)}
-      icon={showArtworkInMenuBar && state.artworkUrl ? { source: state.artworkUrl } : undefined}
+      title={menuTitle(state, displayMode, titleTemplate)}
+      icon={menuBarIcon}
       tooltip="Now Playing"
     >
       {state.status === "missing-media-control" ? (
         <MenuBarExtra.Section title="Install media-control">
           <MenuBarExtra.Item title="1) brew install media-control" />
-          <MenuBarExtra.Item title="2) media-control get" />
           <MenuBarExtra.Item
             title="Open Homebrew Formula"
             onAction={async () => {
