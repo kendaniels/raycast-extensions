@@ -451,37 +451,33 @@ function TrackList(props: {
           }
         />
       ) : null}
-      {props.tracks.map((track) =>
-        (() => {
-          return (
-            <List.Item
-              key={track.ratingKey}
-              icon={artworkSource(track.thumb ?? props.coverPath)}
-              title={formatTrackDisplayTitle(track.title, {
-                parentIndex: track.parentIndex,
-                index: track.index,
-                userRating: track.userRating,
-                displayMode: ratingDisplayMode,
-              })}
-              subtitle={[track.grandparentTitle, track.parentTitle]
-                .filter(Boolean)
-                .join(" - ")}
-              accessories={trackAccessories(track)}
-              actions={
-                <ActionPanel>
-                  <PlaybackActionItems
-                    item={track}
-                    onPlay={props.onPlay}
-                    onPlayNext={props.onPlayNext}
-                    onQueue={props.onQueue}
-                    nowPlayingShortcut={{ modifiers: ["cmd"], key: "n" }}
-                  />
-                </ActionPanel>
-              }
-            />
-          );
-        })(),
-      )}
+      {props.tracks.map((track) => (
+        <List.Item
+          key={track.ratingKey}
+          icon={artworkSource(track.thumb ?? props.coverPath)}
+          title={formatTrackDisplayTitle(track.title, {
+            parentIndex: track.parentIndex,
+            index: track.index,
+            userRating: track.userRating,
+            displayMode: ratingDisplayMode,
+          })}
+          subtitle={[track.grandparentTitle, track.parentTitle]
+            .filter(Boolean)
+            .join(" - ")}
+          accessories={trackAccessories(track)}
+          actions={
+            <ActionPanel>
+              <PlaybackActionItems
+                item={track}
+                onPlay={props.onPlay}
+                onPlayNext={props.onPlayNext}
+                onQueue={props.onQueue}
+                nowPlayingShortcut={{ modifiers: ["cmd"], key: "n" }}
+              />
+            </ActionPanel>
+          }
+        />
+      ))}
     </List>
   );
 }
