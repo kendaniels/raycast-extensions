@@ -1,4 +1,4 @@
-## [Plex Sign-In, Now Playing, and Search Improvements] - {PR_MERGE_DATE}
+## [Plex Sign-In, Now Playing, and Search Improvements] - 2026-03-22
 
 - Added managed Plex sign-in, server selection, and music library selection inside Raycast.
 - Added the `Plexamp Status` command for inspecting the active Plexamp client and selected music library.
