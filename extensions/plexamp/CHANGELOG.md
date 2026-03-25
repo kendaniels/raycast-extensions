@@ -1,6 +1,6 @@
 # Plexamp CHANGELOG
 
-## [Server Connection Fixes] - 2026-03-24
+## [Server Connection Fixes] - {PR_MERGE_DATE}
 
 - Fixed "All promises were rejected" error on Browse Library, Search Library, and Status commands by saving the verified working connection URL from library selection instead of an untested preferred URL.
 - Fixed the Now Playing Menubar not showing track information by using the server address from Plexamp's timeline response instead of the saved server URL.
