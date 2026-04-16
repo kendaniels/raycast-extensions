@@ -40,12 +40,12 @@ async function loadNowPlaying(): Promise<MenuBarState> {
 const initialState: MenuBarState = { timeline: { state: "loading" } };
 
 export default function Command() {
-  const { value: state, isLoading, error, reload } = useAsyncValue(
-    loadNowPlaying,
-    "menubar",
-    initialState,
-    "menubar-now-playing",
-  );
+  const {
+    value: state,
+    isLoading,
+    error,
+    reload,
+  } = useAsyncValue(loadNowPlaying, "menubar", initialState, "menubar-now-playing");
 
   const title = useMemo(() => formatNowPlayingMenuBarTitle(state.current), [state.current]);
   const icon = state.imageUrl ? { source: state.imageUrl } : Icon.Music;
