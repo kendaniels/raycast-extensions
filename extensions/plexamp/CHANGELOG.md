@@ -1,6 +1,6 @@
 # Plexamp CHANGELOG
 
-## [Menubar Flicker Fix] - {PR_MERGE_DATE}
+## [Menubar Flicker Fix] - 2026-04-17
 
 - Fixed the menubar widget blinking "Nothing playing" and losing album art on every background refresh by caching playback state across remounts.
 
