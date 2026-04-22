@@ -1,6 +1,6 @@
 # Apple Reminders Changelog
 
-## [Customize Create Reminder Form and Manage Create Actions] - {PR_MERGE_DATE}
+## [Customize Create Reminder Form and Manage Create Actions] - 2026-04-22
 
 - Add a new "Customize Create Reminder Form" command to control which field groups appear in the Create Reminder form.
 - Allow field groups to be turned on or off and moved up or down into a preferred order.
