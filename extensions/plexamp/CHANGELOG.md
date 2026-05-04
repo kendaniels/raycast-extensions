@@ -1,6 +1,6 @@
 # Plexamp CHANGELOG
 
-## [Play Shortcut] - {PR_MERGE_DATE}
+## [Play Shortcut] - 2026-05-04
 
 - Added a `Cmd+Enter` shortcut to `Play in Plexamp` on album rows in artist views (list and grid) so an album can be played directly without first drilling into its tracks.
 
